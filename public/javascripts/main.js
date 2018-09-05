@@ -2,8 +2,8 @@
  * @description 전체서비스 상태표 페이지 구성을 위한 초기화 함수
  * @param {*} svcList 서비스 리스트
  */
-const mainPageInit = (svcList) => {
-    makeTbAllSvcList(svcList);
+const mainPageInit = () => {
+    makeTbAllSvcList();
     modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정하는
     // intervalView();
 };
@@ -12,7 +12,7 @@ const mainPageInit = (svcList) => {
  * @description 동적으로 테이블리스트 생성 함수
  * @param {*} svcList 서비스 리스트
  */
-const makeTbAllSvcList = (svcList) => {
+const makeTbAllSvcList = () => {
     $.each(svcList, function(idx, svc) {
         const port = (svc['port'] === '' || svc['port'] === null) ? '-' : svc['port'],
             status = (svc['status'] === undefined || svc['status'] === '' || svc['status'] === null) ? '-' : svc['status'];

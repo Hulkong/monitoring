@@ -29,38 +29,59 @@ const changeUnit = (byte, unit) => {
   }
 };
 
-router.get('/dir', function (req, res, next) {
-  var path = './resource/';
-  fs.readdir(path, function (err, files) {
-    if (err) {
-      fs.mkdir('./resource', 0666, function (err) {
-        if (err) throw err;
-        console.log('Created resource directory');
-      });
-      return;
-    }
+/**
+ * @description 폴더를 생성하는 함수
+ * @param {*} path 폴더를 생성할 경로
+ */
+const createFolder = (path) => {
+	fs.mkdir(path, 0666, function(err){
+    if(!err) console.log('create new directory');	
+	});
+};
 
-    files.forEach(function (file) {
-      let fileName = file.substring(0, file.lastIndexOf(".txt"));
-      if(fileName.length === 0) return;
-      console.log(path + fileName);
-      fs.stat(path + file, function (err, stats) {
-        // console.log(stats);
-        let size = changeUnit(stats['size'], 'gb');
-
-        if(size >= 1) {
-
-        }
-
-        fs.createReadStream(path + file)
-          .pipe(zlib.createGzip())
-          .on('data', () => process.stdout.write('compact ing...\n'))
-          .pipe(fs.createWriteStream(path + fileName + '.gz'))
-          .on('finish', () => console.log('Compact Finished'));
-      });
+/**
+ * @description 폴더가 존재하는지 찾는 함수
+ * @param {*} path 찾을 폴더 경로 및 이름
+ * @returns 찾은 파일들
+ */
+const searchFolder = (path) => {
+  return new Promise((resolve, reject) => {
+    fs.readdir(path, function (err, files) {
+      if(err) console.log('not search directory');
+      resolve(files);
     });
   });
-});
+}
+
+/**
+ * @description 폴더를 삭제하는 함수
+ * @param {*} path 삭제할 폴더경로
+ */
+const removeFile = (path) => {
+  fs.unlink(path, function(err) {
+    if (err) {
+        return console.error(err);
+    }
+    console.log("remove file");
+  });
+};
+/**
+ * @description 파일을 압축하는 함수
+ * @param {*} path 저장할 파일경로
+ * @param {*} fileName 저장할 파일이름
+ */
+const compact = (path, file) => {
+  let fileName = file.substring(0, file.lastIndexOf(".txt"));   // 확장자 제거
+  let today = getToday();
+
+  if(fileName.length === 0) return;
+
+  fs.createReadStream(path + file)
+  .pipe(zlib.createGzip())
+  .on('data', () => process.stdout.write('compact ing...\n'))
+  .pipe(fs.createWriteStream(path + fileName  + '_' + today.split(' ')[0] + '.gz'))
+  .on('finish', () => console.log('Compact Finished'));
+};
 
 /**
  * @description 해당 url에 대한 서버 물리자원 이용률 가져옴
@@ -157,37 +178,31 @@ const makeReturnData = (res, index) => {
  * @param {*} date 파일이름을 날짜를 기본으로 생성
  */
 const makeLogFile = (logTxt, date) => {
-  var path = './logs/';
-  fs.readdir(path, function (err, files) {
-    if (err) {
-      fs.mkdir('./logs', 0666, function (err) {
-        if (err) throw err;
-        console.log('Created logs directory');
+  let path = './logs/';
+
+  // 폴더가 존재하는지 확인 후 로직 실행
+  searchFolder(path).then((files) => {
+    if(files === undefined) {
+      createFolder(path);
+    } else {
+      // 디렉토리안 모든 파일에 대하여 1GB이상일 때 압축
+      files.forEach(function (file) {
+
+        fs.stat(path + file, function (err, stats) {
+          // console.log(stats);
+          let size = changeUnit(stats['size'], 'gb');
+
+          // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
+          if(size >= 1) {
+            compact(path, file);   // 파일을 압축
+            if(file.indexOf('gz') < 0) removeFile(path + file);   // 압축한 원본파일을 삭제(압축파일 제외)
+          }
+
+          fs.appendFile(path + date.split(' ')[0] + '.log', logTxt + '\n', (err) => { if (err) throw err; });
+        });
       });
-      return;
     }
-
-    files.forEach(function (file) {
-      let fileName = file.substring(0, file.lastIndexOf(".txt"));
-      console.log(path + fileName);
-      fs.stat(path + file, function (err, stats) {
-        // console.log(stats);
-        let size = changeUnit(stats['size'], 'gb');
-
-        if (size >= 1) {
-
-        }
-
-        fs.createReadStream(path + file)
-          .pipe(zlib.createGzip())
-          .on('data', () => process.stdout.write('compact ing...\n'))
-          .pipe(fs.createWriteStream(path + fileName + '.gz'))
-          .on('finish', () => console.log('Compact Finished'));
-      });
-    });
   });
-
-  fs.appendFile('./logs/' + date.split(' ')[0] + '.log', logTxt + '\n', (err) => { if (err) throw err; });
 };
 
 /**
@@ -209,7 +224,31 @@ const getResource = (idx, res) => {
  * @param {*} data 저장할 데이터
  */
 const saveReource = (name, data) => {
-  fs.appendFile('./resource/' + name + '.txt', JSON.stringify(data) + ',\n', (err) => { if (err) throw err; });
+  let path = './resource/';
+
+  // 폴더가 존재하는지 확인 후 로직 실행
+  searchFolder(path).then((files) => {
+    if(files === undefined) {
+      createFolder(path);
+    } else {
+      // 디렉토리안 모든 파일에 대하여 1GB이상일 때 압축
+      files.forEach(function (file) {
+
+        fs.stat(path + file, function (err, stats) {
+          // console.log(stats);
+          let size = changeUnit(stats['size'], 'gb');
+
+          // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
+          if(size >= 1) {
+            compact(path, file);   // 파일을 압축
+            if(file.indexOf('gz') < 0) removeFile(path + file);   // 압축한 원본파일을 삭제(압축파일 제외)
+          }
+
+          fs.appendFile(path + name + '.txt', JSON.stringify(data) + ',\n', (err) => { if (err) throw err; });
+        });
+      });
+    }
+  });
 };
 
 /**
