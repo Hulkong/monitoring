@@ -2,12 +2,65 @@ const express = require('express');
 const router = express.Router();
 const request = require('request');
 const fs = require('fs');
+const zlib = require('zlib');
 const readLastLines = require('read-last-lines');
 const WebSocketServer = require("ws").Server;
 const wss = new WebSocketServer({ port: 3001 });
 const svcLists = require('../info/svcList');
 const svcList = svcLists['svcList'];
 let pageNm = 'main';
+
+const changeUnit = (byte, unit) => {
+
+  if (unit === 'kb') {
+    let kb = byte / (1024);
+    return Math.round(kb * 100) / 100.0;
+  } else if (unit === 'mb') {
+    let mb = byte / (1024 * 1024);
+    return Math.round(mb * 100) / 100.0;
+  } else if (unit === 'gb') {
+    let gb = byte / (1024 * 1024 * 1024);
+    return Math.round(gb * 100) / 100.0;
+  } else if (unit === 'tb') {
+    let tb = size / (1024 * 1024 * 1024 * 1024);
+    return Math.round(tb * 100) / 100.0;
+  } else {
+    console.log('단위를 입력해주세요.(kb, mb, gb, tb)');
+  }
+};
+
+router.get('/dir', function (req, res, next) {
+  var path = './resource/';
+  fs.readdir(path, function (err, files) {
+    if (err) {
+      fs.mkdir('./resource', 0666, function (err) {
+        if (err) throw err;
+        console.log('Created resource directory');
+      });
+      return;
+    }
+
+    files.forEach(function (file) {
+      let fileName = file.substring(0, file.lastIndexOf(".txt"));
+      if(fileName.length === 0) return;
+      console.log(path + fileName);
+      fs.stat(path + file, function (err, stats) {
+        // console.log(stats);
+        let size = changeUnit(stats['size'], 'gb');
+
+        if(size >= 1) {
+
+        }
+
+        fs.createReadStream(path + file)
+          .pipe(zlib.createGzip())
+          .on('data', () => process.stdout.write('compact ing...\n'))
+          .pipe(fs.createWriteStream(path + fileName + '.gz'))
+          .on('finish', () => console.log('Compact Finished'));
+      });
+    });
+  });
+});
 
 /**
  * @description 해당 url에 대한 서버 물리자원 이용률 가져옴
@@ -104,6 +157,36 @@ const makeReturnData = (res, index) => {
  * @param {*} date 파일이름을 날짜를 기본으로 생성
  */
 const makeLogFile = (logTxt, date) => {
+  var path = './logs/';
+  fs.readdir(path, function (err, files) {
+    if (err) {
+      fs.mkdir('./logs', 0666, function (err) {
+        if (err) throw err;
+        console.log('Created logs directory');
+      });
+      return;
+    }
+
+    files.forEach(function (file) {
+      let fileName = file.substring(0, file.lastIndexOf(".txt"));
+      console.log(path + fileName);
+      fs.stat(path + file, function (err, stats) {
+        // console.log(stats);
+        let size = changeUnit(stats['size'], 'gb');
+
+        if (size >= 1) {
+
+        }
+
+        fs.createReadStream(path + file)
+          .pipe(zlib.createGzip())
+          .on('data', () => process.stdout.write('compact ing...\n'))
+          .pipe(fs.createWriteStream(path + fileName + '.gz'))
+          .on('finish', () => console.log('Compact Finished'));
+      });
+    });
+  });
+
   fs.appendFile('./logs/' + date.split(' ')[0] + '.log', logTxt + '\n', (err) => { if (err) throw err; });
 };
 
