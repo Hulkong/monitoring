@@ -70,8 +70,9 @@
     <script src="/javascripts/main.js"></script>
     <script src="/javascripts/sub.js"></script>
     <script>
+        const svcList = JSON.parse('<%-JSON.stringify(data.svcList)%>');
         commInit();   // 공통 라이브러리 초기화(한번만 실행)
-        mainPageInit(JSON.parse('<%-JSON.stringify(data.svcList)%>'));   // 메인페이지 초기화(한번만 실행)
+        mainPageInit();   // 메인페이지 초기화(한번만 실행)
     </script>
 </body>
 </html>
