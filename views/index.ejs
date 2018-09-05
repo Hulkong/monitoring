@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+<title></title>
+<head></head>
+<body>
+    <header>
+        <nav class="navbar navbar-light bg-light">
+            <a id="title" class="navbar-brand">전체 서비스 상태표</a>
+            <a id="back" class="navbar-brand"><img src="/images/back.png"/></a>
+            <form id="search" class="form-inline">
+                <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search" onkeyup="typingSearch();">
+                <button class="btn btn-outline-success my-2 my-sm-0" type="submit" onclick="clickSearch(event);">Search</button>
+            </form>
+        </nav>
+    </header>
+    <section id="allSvcStat">
+        <table class="table">
+            <colgroup>
+                <col width="25%">
+                <col width="25%">
+                <col width="20%">
+                <col width="10%">
+                <col width="10%">
+            </colgroup>
+            <thead class="thead-dark">
+                <tr>
+                    <th>서비스명</th>
+                    <th>용도</th>
+                    <th>아이피</th>
+                    <th>포트</th>
+                    <th>상태</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
+    <section id="svcStat" class="wrapper">
+        <div id="info">
+            <table class="table">
+                <colgroup>
+                    <col width="40%">
+                    <col width="60%">
+                </colgroup>
+                <thead class="thead-dark">
+                    <tr>
+                        <th>정보</th>
+                        <th>값</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div id="resource">
+            <canvas id="cpu" width="400" height="100%"></canvas>
+            <canvas id="mem" width="400" height="100%"></canvas>
+            <canvas id="disk" width="400" height="100%"></canvas>
+            <canvas id="dbconn" width="400" height="100%"></canvas>
+            <canvas id="thread" width="400" height="100%"></canvas>
+            <canvas id="jvmmem" width="400" height="100%"></canvas>
+        </div>
+    </section>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/stylesheets/style.css">
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/Chart.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/javascripts/common.js"></script>
+    <script src="/javascripts/main.js"></script>
+    <script src="/javascripts/sub.js"></script>
+    <script>
+        commInit();   // 공통 라이브러리 초기화(한번만 실행)
+        mainPageInit(JSON.parse('<%-JSON.stringify(data.svcList)%>'));   // 메인페이지 초기화(한번만 실행)
+    </script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+html, body, span{
+    overflow: hidden;
+    margin: 0px;
+    padding: 0px;
+    height: 100%;
+    line-height: 1;
+}
+
+header {
+  border-bottom: 0.1px solid black;
+}
+
+header #title {
+  margin: 15px 0 15px 15px;
+  font-size: 1.5em;
+  color: black;
+}
+
+header #back {
+  display: none;
+  font-size: 1.5em;
+  color: black;
+  float: right
+}
+
+section {
+  margin: 30px 0px 0px 0px;
+  overflow-y: auto;
+  width: 97%;
+}
+
+.table {
+    width: 95%;
+    height: 100%;
+    margin-left: 50px;
+    text-align: center;
+}
+
+table, th, td {
+    border: 1px solid #ffffff;
+    border-collapse: collapse;
+}
+
+tbody tr {
+    background-color: #EAEAEA;
+    color: #000000;
+}
+
+section#svcStat {
+    display: none;
+    grid-template-columns: repeat(4, 4fr);
+    grid-auto-rows: 200px;
+    grid-gap: 20px;
+}
+
+section #info {
+  margin-top: 100px;
+  margin-left: 50px;
+  grid-column-start: 1;
+  grid-column-end: 3;
+  grid-row-start: 1;
+  position: relative;
+}
+
+section #info table {
+  margin:0;
+  padding:0;
+}
+
+section #resource {
+  grid-column-start: 3;
+  grid-column-end: 5;
+  grid-row-start: 1;
+  grid-row-end: 4;
+}
+
+/* for MS계열 브라우저 */
+@keyframes blink {
+ 0% {background-color: red;}
+ 50% {background-color: #EAEAEA;}
+}
+
+/* for Chrome, Safari */
+@-webkit-keyframes blink {
+ 0% {background-color: red;}
+ 50% {background-color: #EAEAEA;}
+}
+
+/* blink CSS 브라우저 별로 각각 애니메이션을 지정해 주어야 동작한다. */
+.blinkcss {
+ font-weight:bold;
+ animation: blink 1s step-end infinite;
+ -webkit-animation: blink 1s step-end infinite;
+}
