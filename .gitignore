@@ -62,3 +62,6 @@ typings/
 
 # import information
 info/
+
+# service server hardware resource(json)
+resource/
