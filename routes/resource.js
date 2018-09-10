@@ -61,11 +61,11 @@ router.get('/dbconnection', function (req, res, next) {
   };
   */
 
-  let dbconfig = {
-    connectString: '115.68.55.254/opendw',
-    user: 'Y_H_KIM',
-    password: '!dydgus12'
-  };
+  // let dbconfig = {
+  //   connectString: '115.68.55.254/opendw',
+  //   user: 'Y_H_KIM',
+  //   password: '!dydgus12'
+  // };
 
   // let pool = dbconn.createPool(dbconfig, 'maria');
   // let sql = "SELECT COUNT(*) CONN_CNT FROM information_schema.PROCESSLIST WHERE DB = 'svc_v3_new' AND USER = 'selfmap' AND HOST LIKE CONCAT('115.68.55.224', '%') AND COMMAND = 'Sleep'";
@@ -84,6 +84,8 @@ const openConnPool = () => {
   let pools = [];
 
   dbInfo.forEach((dbconfig, idx) => {
+    if (dbconfig['type'] === 'oracle') dbconfig.connectString = dbconfig['host'] + '/' + dbconfig['database'];
+
     pools.push(dbconn.createPool(dbconfig, dbconfig['type']));
   });
 
@@ -139,6 +141,18 @@ const openSocket = (pools) => {
  * @returns 서비스 서버의 물리자원(json)
  */
 const getRmtSvResource = (websocket, pools) => {
+  dbInfo.forEach((info, idx) => {
+    let sql = makeSql(info['type']);
+    let type = info['type'];
+
+    if (type === 'oracle') {
+      pools[idx].then((pool) => dbconn.execQuery(pool, sql, [info['user']], info['type']));
+    } else if (type === 'maria') {
+      dbconn.execQuery(pools[idx], sql, [info['database'], info['user'], info['host'], info['database'], info['user'], info['host']], info['type']);
+    } else if (type === 'postgres') {
+      dbconn.execQuery(pools[idx], sql, [info['database']], info['type']);
+    }
+  });
   // svcLists.forEach((data, idx) => {
 
   let data = svcList[4];
