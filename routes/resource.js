@@ -7,7 +7,8 @@ const readLastLines = require('read-last-lines');
 const WebSocketServer = require("ws").Server;
 const wss = new WebSocketServer({ port: 3001 });
 const svcList = require('../info/SERVICE-LIST');
-const dbInfo = require('../info/DB-INFO');
+const dbSvcInfo = require('../info/DB-SERVICE-INFO');
+const dbInfo = require('../info/DB-FOOL-INFO');
 const dbconn = require('../lib/db-connect');
 let pageNm = 'main';
 
@@ -141,6 +142,7 @@ const openSocket = (pools) => {
  * @returns 서비스 서버의 물리자원(json)
  */
 const getRmtSvResource = (websocket, pools) => {
+  /*
   dbInfo.forEach((info, idx) => {
     let sql = makeSql(info['type']);
     let type = info['type'];
@@ -153,10 +155,17 @@ const getRmtSvResource = (websocket, pools) => {
       dbconn.execQuery(pools[idx], sql, [info['database']], info['type']);
     }
   });
-  // svcLists.forEach((data, idx) => {
+  */
+  svcLists.forEach((data, idx) => {
 
-  let data = svcList[4];
+  // let data = svcList[4];
 
+  if(!(data['usage'].indexOf('배경지도') >= 0)) {
+    let findIdx = [];
+    dbSvcInfo.forEach((d, i) => {
+      if(data['nm'].trim() === d[i].trim()) 
+    });
+  }
   /**
    * 로컬 테스트 데이터
 
@@ -183,7 +192,7 @@ const getRmtSvResource = (websocket, pools) => {
     else return websocket.send(JSON.stringify(returnData));
   });
 
-  // });
+  });
 };
 
 /**
