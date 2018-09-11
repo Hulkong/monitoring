@@ -7,8 +7,7 @@ const readLastLines = require('read-last-lines');
 const WebSocketServer = require("ws").Server;
 const wss = new WebSocketServer({ port: 3001 });
 const svcList = require('../info/SERVICE-LIST');
-const dbSvcInfo = require('../info/DB-SERVICE-INFO');
-const dbInfo = require('../info/DB-FOOL-INFO');
+const dbFoolInfo = require('../info/DB-FOOL-INFO');
 const dbconn = require('../lib/db-connect');
 let pageNm = 'main';
 
@@ -21,8 +20,8 @@ let pageNm = 'main';
  *  4. 위의 두 과정은 비동기 처리!
  */
 router.post('/', function (req, res, next) {
-  let pools = openConnPool();
-  openSocket(pools);
+
+  openSocket();
 
   res.json({
     message: "server socket open",
@@ -82,15 +81,21 @@ router.get('/dbconnection', function (req, res, next) {
 
 
 const openConnPool = () => {
-  let pools = [];
 
-  dbInfo.forEach((dbconfig, idx) => {
-    if (dbconfig['type'] === 'oracle') dbconfig.connectString = dbconfig['host'] + '/' + dbconfig['database'];
+  let obj = {};
 
-    pools.push(dbconn.createPool(dbconfig, dbconfig['type']));
+  dbFoolInfo.forEach((dbconfig) => {
+    if (dbconfig['type'] === 'oracle') {
+      dbconfig.connectString = dbconfig['host'] + '/' + dbconfig['database'];
+      dbconn.createPool(dbconfig, dbconfig['type']).then((pool) => {
+        obj[dbconfig['host']] = pool;
+      })
+    } else {
+      obj[dbconfig['host']] = dbconn.createPool(dbconfig, dbconfig['type']);
+    }
   });
 
-  return pools;
+  return obj;
 };
 
 /**
@@ -127,23 +132,45 @@ const makeSql = (type) => {
  *
  * 연결 후 서비스 서버의 물리자원 이용률 요청 함수 호출
  */
-const openSocket = (pools) => {
+const openSocket = () => {
   // 연결이 수립되면 클라이언트에 메시지를 전송하고 클라이언트로부터 메시지를 송수신
   wss.on('connection', (ws) => {
+    let pools = openConnPool();
+
+    let cleanData = svcList.reduce((pre, curr) => {
+      let obj = {
+        nm: curr['nm'],
+        usage: curr['usage'],
+        ip: curr['ip'],
+        port: curr['port'],
+        url: curr['url'],
+        dbHost: curr['dbHost'] === undefined ? [] : curr['dbHost'],
+        database: curr['database'] === undefined ? [] : curr['database'],
+        dbUser: curr['dbUser'] === undefined ? [] : curr['dbUser'],
+        type: curr['type'] === undefined ? [] : curr['type']
+      };
+
+      pre.push(obj);
+
+      return pre;
+    }, []);
     ws.send(JSON.stringify({message: 'hello! I am a server.', statusCode: 444}));
-    setInterval(() => { getRmtSvResource(ws, pools)}, 3000);
+    setInterval(() => { getRmtSvResource(ws, pools, cleanData)}, 3000);
+    // getRmtSvResource(ws, pools, cleanData)
     ws.on('message', (message) => {console.log("Receive: %s", message);});
   });
 };
+
+
 
 /**
  * @description 서비스 서버의 물리자원 이용률 반복요청하는 함수
  * @param {*} websocket 연결된 웹소켓
  * @returns 서비스 서버의 물리자원(json)
  */
-const getRmtSvResource = (websocket, pools) => {
+const getRmtSvResource = (websocket, pools, cleanData) => {
   /*
-  dbInfo.forEach((info, idx) => {
+  dbFoolInfo.forEach((info, idx) => {
     let sql = makeSql(info['type']);
     let type = info['type'];
 
@@ -156,16 +183,9 @@ const getRmtSvResource = (websocket, pools) => {
     }
   });
   */
-  svcLists.forEach((data, idx) => {
+  // svcList.forEach((data, idx) => {
 
   // let data = svcList[4];
-
-  if(!(data['usage'].indexOf('배경지도') >= 0)) {
-    let findIdx = [];
-    dbSvcInfo.forEach((d, i) => {
-      if(data['nm'].trim() === d[i].trim()) 
-    });
-  }
   /**
    * 로컬 테스트 데이터
 
@@ -178,21 +198,49 @@ const getRmtSvResource = (websocket, pools) => {
   };
   */
 
+  cleanData.forEach((data, idx) => {
+    if(data['dbHost'].length > 0) {
+      data['dbHost'].forEach((host, i) => {
+        let type = data['type'][i];
+        let database = data['database'][i];
+        let user = data['dbUser'][i];
+        let sql = makeSql(type);
+        let parameter = [];
+
+        if (type === 'oracle') {
+          parameter = [user];
+        } else if (type === 'maria') {
+          parameter = [database, user, host, database, user, host];
+        } else if (type === 'postgres') {
+          parameter = [database];
+        }
+
+        if (host !== '115.68.55.203') {
+          dbconn.execQuery(pools[host], sql, parameter, type).then(function (result) {
+            let path = './resource/dbconn/';
+            saveReource(path, data['nm'] + '_' + idx, result);
+          });
+        }
+      });
+    }
+  });
+
   request(data['url'] + '/sc.jsp', { json: true }, (err, res, body) => {
     if (err) { return console.log(err); }   // 서비스 서버의 요청에 대한 에러처리
 
     let today = getToday();   // 현재 시간 구함
     let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
     let returnData = makeReturnData(res, 4);
+    let path = './resource/physics/';
 
     makeLogFile(logTxt, today);   // 로그파일을 만듬
-    saveReource(data['nm'], body);   // 서비스 서버의 물리자원 이용 데이터 저장
+    saveReource(path, data['nm'] + '_' + idx, body);   // 서비스 서버의 물리자원 이용 데이터 저장
 
     if (pageNm === 'sub') return websocket.send(JSON.stringify(body));   // 서비스 서버의 물리자원 이용률 리턴
     else return websocket.send(JSON.stringify(returnData));
   });
 
-  });
+  // });
 };
 
 /**
@@ -256,8 +304,8 @@ const getResource = (idx, res) => {
  * @param {*} name 서비스 이름
  * @param {*} data 저장할 데이터
  */
-const saveReource = (name, data) => {
-  let path = './resource/';
+const saveReource = (path, name, data) => {
+  // let path = './resource/';
 
   // 폴더가 존재하는지 확인 후 로직 실행
   searchFolder(path).then((files) => {
@@ -277,9 +325,9 @@ const saveReource = (name, data) => {
             if(file.indexOf('gz') < 0) removeFile(path + file);   // 압축한 원본파일을 삭제(압축파일 제외)
           }
 
-          fs.appendFile(path + name + '.txt', JSON.stringify(data) + ',\n', (err) => { if (err) throw err; });
         });
       });
+      fs.appendFile(path + name + '.txt', JSON.stringify(data) + ',\n', (err) => { if (err) throw err; });
     }
   });
 };
