@@ -3,7 +3,8 @@
  */
 const commInit = () => {
     charts = {};
-
+    pageNm = 'main'
+    pageIdx = -1;
     $('#resource canvas').each((idx, ele) => { makeGraph(ele);});
     connectNodeJs();   // nodejs 서버 웹소켓 생성 및 연결
 };
@@ -14,21 +15,19 @@ const commInit = () => {
  *
  *  비동기로 서버에서 데이터 수신
  *
- *  그래프를 그리기위하여 데이터 메모리에 임시저장: saveToMem();
- *
  *  장애 서버에 관한 리스트 효과 생성 및 장애메시지 슬랙앱으로 푸쉬
  */
 const openSocket = () => {
     ws = new WebSocket("ws://localhost:3001");                                             // 웹소켓 전역 객체 생성
     ws.onopen = (event) => { ws.send("Client message: Hi"); };                           // 연결 수립되면 서버에 메시지를 전송
 
-    // 서버로부터 메시지를 수신
+    // 서버와 통신
     ws.onmessage = (event) => {
         let data = JSON.parse(event['data']);
         if (data['statusCode'] === 444) return;   // 처음 nodejs 서버와 소켓연결일 때
-        // console.log("Server message: ", data)
+        console.log("Server message: ", data)
 
-        if ($('#svcStat:visible').length > 0) {
+        if(pageNm === 'sub') {
             let cleanData = convertData([data]);
             updateGraphs(cleanData);
         } else {
@@ -121,82 +120,77 @@ const pushMtoSlack = (svcInfo) => {
  * @returns 배열
  */
 const convertData = (arr) => {
-    // console.log(data)
-    let svrInfos = {
-        'cpu': [],
-        'mem': [],
-        'disk': [],
-        'dbconn': [],
-        'thread': [],
-        'jvmmem': [],
-        'date': [],
-        'label': []
-    };
+    let svrInfos = {};
 
-    arr.forEach((data, idx) => {
-        let cpuUse = 0;
-        let memUse = 0;
-        let totSpace = '';
-        let usableSpace = '';
-        let diskUse = 0;
-        let jvmmemUse = 0;
-        let threadCnt = parseInt(data['activeThread']);
-        let date = data['date'];
+    if (arr[0]['act_cnt'] !== undefined) {
+        svrInfos = {
+            'dbconn': [],
+            'date': [],
+            'label': []
+        };
 
-        if (parseFloat(data['getSystemCpuLoad']) !== 0 && parseFloat(data['getSystemCpuLoad']) >= parseFloat(data['getProcessCpuLoad']) ) {
-            cpuUse = ( parseFloat(data['getSystemCpuLoad']) - parseFloat(data['getProcessCpuLoad']) ) / parseFloat(data['getSystemCpuLoad']) * 100;
-        }
-
-        if ( parseInt(data['getTotalPhysicalMemorySize']) !== 0 && parseInt(data['getTotalPhysicalMemorySize']) >= parseInt(data['getFreePhysicalMemorySize']) ) {
-            memUse = ( parseInt(data['getTotalPhysicalMemorySize']) - parseInt(data['getFreePhysicalMemorySize']) ) / parseInt(data['getTotalPhysicalMemorySize']) * 100;
-        }
-
-        data['fileSystems'].forEach((d, idx) => {
-            totSpace += parseInt(d['totSpace']);
-            usableSpace += parseInt(d['usableSpace']);
+        arr.forEach((d) => {
+            svrInfos['dbconn'].push(d['act_cnt']);
+            svrInfos['date'].push(d['date']);
+            svrInfos['label'].push('');
         });
+    } else {
+        svrInfos = {
+            'cpu': [],
+            'mem': [],
+            'disk': [],
+            'thread': [],
+            'jvmmem': [],
+            'date': [],
+            'label': []
+        };
 
-        diskUse = (usableSpace / totSpace) * 100;
+        arr.forEach((data, idx) => {
+            let cpuUse = 0;
+            let memUse = 0;
+            let totSpace = '';
+            let usableSpace = '';
+            let diskUse = 0;
+            let jvmmemUse = 0;
+            let threadCnt = parseInt(data['activeThread']);
+            let date = data['date'];
 
-        // let dbconnCnt =
-        if ( parseInt(data['totMemJVM']) !== 0 && parseInt(data['totMemJVM']) >= parseInt(data['freeMemJVM']) ) {
-            jvmmemUse = ( parseInt(data['totMemJVM']) - parseInt(data['freeMemJVM']) ) / parseInt(data['totMemJVM']) * 100;
-        }
+            // cpu 이용률 계산
+            if (parseFloat(data['getSystemCpuLoad']) !== 0 && parseFloat(data['getSystemCpuLoad']) >= parseFloat(data['getProcessCpuLoad']) ) {
+                cpuUse = ( parseFloat(data['getSystemCpuLoad']) - parseFloat(data['getProcessCpuLoad']) ) / parseFloat(data['getSystemCpuLoad']) * 100;
+            }
 
-        svrInfos['cpu'].push(Math.round(cpuUse * 100) / 100.0);
-        svrInfos['mem'].push(Math.round(memUse * 100) / 100.0);
-        svrInfos['disk'].push(Math.round(diskUse * 100) / 100.0);
-        // svrInfos[index]['dbconn'].push(dbconnCnt);
-        svrInfos['thread'].push(threadCnt);
-        svrInfos['jvmmem'].push(Math.round(jvmmemUse * 100) / 100.0);
-        svrInfos['date'].push(date);
-        svrInfos['label'].push('');
-    });
+            // memory 이용률 계산
+            if ( parseInt(data['getTotalPhysicalMemorySize']) !== 0 && parseInt(data['getTotalPhysicalMemorySize']) >= parseInt(data['getFreePhysicalMemorySize']) ) {
+                memUse = ( parseInt(data['getTotalPhysicalMemorySize']) - parseInt(data['getFreePhysicalMemorySize']) ) / parseInt(data['getTotalPhysicalMemorySize']) * 100;
+            }
+
+            // 하드디스크 이용율 계산
+            if (data['fileSystems'] !== undefined) {
+                data['fileSystems'].forEach((d, idx) => {
+                    totSpace += parseInt(d['totSpace']);
+                    usableSpace += parseInt(d['usableSpace']);
+                });
+                diskUse = (usableSpace / totSpace) * 100;
+            }
+
+            // let dbconnCnt =
+            if ( parseInt(data['totMemJVM']) !== 0 && parseInt(data['totMemJVM']) >= parseInt(data['freeMemJVM']) ) {
+                jvmmemUse = ( parseInt(data['totMemJVM']) - parseInt(data['freeMemJVM']) ) / parseInt(data['totMemJVM']) * 100;
+            }
+
+            svrInfos['cpu'].push(Math.round(cpuUse * 100) / 100.0);
+            svrInfos['mem'].push(Math.round(memUse * 100) / 100.0);
+            svrInfos['disk'].push(Math.round(diskUse * 100) / 100.0);
+            svrInfos['thread'].push(threadCnt);
+            svrInfos['jvmmem'].push(Math.round(jvmmemUse * 100) / 100.0);
+            svrInfos['date'].push(date);
+            svrInfos['label'].push('');
+        });
+    }
+
 
     return svrInfos;
-};
-
-/**
- * @description 원격 서버의 물리자원 이용률 데이터를 메모리에 저장하는 함수
- * * 데이터 보존기간은 2시간
- * @param {*} index 서비스리스트 배열데이터 인덱스
- * @param {*} inputData 서비스 서버 자원데이터
- */
-const saveToMem = (index, inputData) => {
-    convertData(index, inputData);   // 해당 서비스의 서버 자원 이용률 데이터 추가
-    let firstDate = svrInfos[index]['date'][0];
-    let today = getToday();
-
-    // 처음 데이터의 삽입 일자와 현재 일자가 같을경우
-    if (compDate(firstDate, today, 'year') && compDate(firstDate, today, 'month') && compDate(firstDate, today, 'day')) {
-        let firstTime = firstDate.split(' ')[1];   // 처음 데이터의 시간을 가져옴
-        let currTime = today.split(' ')[1];   // 현재시간을 가져옴
-
-        // 데이터 보존기간이 2시간이 지났을 경우 처음 데이터 삭제
-        if ((currTime.split(':')[0] - firstTime.split(':')[0]) >= 2) {
-            svrInfos[index].splice(0, 1);
-        }
-    }
 };
 
 /**

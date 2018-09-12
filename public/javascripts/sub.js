@@ -1,8 +1,14 @@
 // 서비스 서버 상태 페이지 구성을 위한 초기화 함수
 subPageInit = (data) => {
     let idx = $(data).data('idx');
+    let dbconn = $(data).data('dbconn');
+    let was = $(data).data('was');
+
     makeTbSvcList(idx);   // 동적으로 테이블리스트 생성
-    getResource(idx);
+    initGraphs();   // 라인차트 초기화
+
+    if (was) getSvResource(idx);
+    if (dbconn) getDBConn(idx);
 };
 
 /**
@@ -10,15 +16,37 @@ subPageInit = (data) => {
  * * 파일에서 몇 라인 읽어옴
  * @param {*} idx
  */
-const getResource = (idx) => {
+const getSvResource = (idx) => {
+    console.log(1111)
     $.ajax({
         method: 'GET',
-        url: window.location.href + 'resource/sub/' + idx,
+        url: window.location.href + 'resource/sub/svResource/' + idx,
         statusCode: {/* 404: function () {alert("page not found");}*/ }
     }).done(function (data) {
         // console.log(JSON.parse(data));
         let cleanData = convertData(JSON.parse(data));   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
-        initGraphs();   // 라인차트 초기화
+        drawGraphs(cleanData);   // 라인차트 그리기
+    }).fail(function (jqXHR, textStatus) {
+        // alert("Request failed: " + textStatus);
+        console.log(textStatus);
+    });
+};
+
+/**
+ * @description nodejs 서버에 원격서비스 자원 데이터 요청(json)
+ * * 파일에서 몇 라인 읽어옴
+ * @param {*} idx
+ */
+const getDBConn = (idx) => {
+    console.log(2222)
+    $.ajax({
+        method: 'GET',
+        url: window.location.href + 'resource/sub/dbConn/' + idx,
+        statusCode: {/* 404: function () {alert("page not found");}*/ }
+    }).done(function (data) {
+        // console.log(JSON.parse(data));
+
+        let cleanData = convertData(JSON.parse(data));   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
         drawGraphs(cleanData);   // 라인차트 그리기
     }).fail(function (jqXHR, textStatus) {
         // alert("Request failed: " + textStatus);
@@ -48,13 +76,15 @@ const makeTbSvcList = (idx) => {
  * @param {*} chartData 차트에 사용될 배열 데이터
  */
 const drawGraphs = (chartData) => {
-    $.each(charts, (key, chart) => {
-        chart.data.labels = chartData['label'];
-        chart.data.date = chartData['date'];
-        chart.data.datasets.forEach((dataset) => {
-            dataset.data = chartData[key];
-        });
-        charts[key].update();
+    $.each(chartData, (key, data) => {
+        if(key !== 'label' && key !== 'date') {
+            charts[key].data.labels = chartData['label'];
+            charts[key].data.date = chartData['date'];
+            charts[key].data.datasets.forEach((dataset) => {
+                dataset.data = chartData[key];
+            });
+            charts[key].update();
+        }
     });
 };
 
@@ -64,16 +94,18 @@ const drawGraphs = (chartData) => {
  */
 const updateGraphs = (chartData) => {
 
-    $.each(charts, (key, chart) => {
-        chart.data.labels[chart.data.datasets[0].data.length] = chartData['label'][0];
+    $.each(chartData, (key, data) => {
+        if (key !== 'label' && key !== 'date') {
+            charts[key].data.labels[charts[key].data.datasets[0].data.length] = chartData['label'][0];
 
-        if (chart.data.date !== undefined)
-            chart.data.date[chart.data.datasets[0].data.length] = chartData['date'][0];
+            if (charts[key].data.date !== undefined)
+                charts[key].data.date[charts[key].data.datasets[0].data.length] = chartData['date'][0];
 
-        chart.data.datasets.forEach((dataset) => {
-            dataset.data.push(chartData[key][0]);
-        });
-        chart.update();
+            charts[key].data.datasets.forEach((dataset) => {
+                dataset.data.push(chartData[key][0]);
+            });
+            charts[key].update();
+        }
     });
 };
 
@@ -96,4 +128,7 @@ $('#back').click(function() {
     $('#search').show();   // 검색창 보여줌
     $('#svcStat').hide();   // 서비스 상태 페이지 숨김
     $('#title').html('전체 서비스 상태표');   // 상단 타이틀 변경
+    pageNm = 'main';
+    pageIdx = -1;
+    ws.send(pageNm + ',' + pageIdx);
 });
