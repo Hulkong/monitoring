@@ -32,17 +32,35 @@ const makeTbAllSvcList = () => {
 
     // 테이블 리스트 클릭 이벤트
     $('#allSvcStat tbody tr').click(function() {
-        const svcNm = $(this).find('td').eq(0).text();
-        $('#allSvcStat').hide();
-        $('#search').hide();
-        $('#svcStat').css('display', 'grid');
-        $('#title').html(svcNm + '서버 상태');
-        $('#back').show();
+        let idx = $(this).attr('idx');
 
-        // 현재 클릭된 리스트의 데이터들을 임시 저장함
-        $(this).data('idx', $(this).attr('idx'));
+        if (svcList[idx]['os'].length > 0) {
+            const svcNm = $(this).find('td').eq(0).text();
+            $('#allSvcStat').hide();
+            $('#search').hide();
+            $('#svcStat').css('display', 'grid');
+            $('#title').html(svcNm + '서버 상태');
+            $('#back').show();
+            pageNm = 'sub';
+            pageIdx = idx;
+            ws.send(pageNm + ',' + pageIdx);
 
-        subPageInit(this);   // sub page 초기화
+            // 현재 클릭된 리스트의 데이터들을 임시 저장함
+            $(this).data('idx', idx);
+            $(this).data('dbconn', true);
+            $(this).data('was', true);
+
+            if (svcList[idx]['dbHost'] === undefined) {
+                $('#dbconn').hide();
+                $(this).data('dbconn', false);
+            }
+
+            if (svcList[idx]['was'].length === 0) {
+                $(this).data('was', false);
+            }
+
+            subPageInit(this);   // sub page 초기화
+        }
     });
 
     // 테이블 마우스 엔터 이벤트

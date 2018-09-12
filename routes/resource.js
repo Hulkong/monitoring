@@ -10,6 +10,7 @@ const svcList = require('../info/SERVICE-LIST');
 const dbFoolInfo = require('../info/DB-FOOL-INFO');
 const dbconn = require('../lib/db-connect');
 let pageNm = 'main';
+let pageIdx = -1;
 
 /**
  * @description 해당 url에 대한 서버 물리자원 이용률 가져옴
@@ -29,56 +30,15 @@ router.post('/', function (req, res, next) {
   });
 });
 
-router.get('/sub/:idx', function (req, res, next) {
-  getResource(req.params.idx, res);   // 저장된 서비스 자원 데이터를 가져옴
-  pageNm = 'sub';
+router.get('/sub/dbConn/:idx', function (req, res, next) {
+  let path = './resource/dbconn/';
+  getResource(path, req.params.idx, res);   // 저장된 서비스 자원 데이터를 가져옴
 });
 
-router.get('/dbconnection', function (req, res, next) {
-  /*
-  let dbconfig = {
-    host: "115.68.55.200",
-    port: '3306',
-    user: "selfmap",
-    password: "@zkdlwj7540",
-    database: 'svc_v3_new',
-    multipleStatements: true
-  };
-  */
-
-  /*
-  let dbconfig = {
-    host: '115.68.215.144',
-    user: 'postgres',
-    password: 'zkdlwj',
-    database: 'onmapdb',
-    port: 5432,
-    ssl: false,
-    max: 20, // set pool max size to 20
-    min: 4, // set min pool size to 4
-    idleTimeoutMillis: 1000, // close idle clients after 1 second
-    connectionTimeoutMillis: 1000, // return an error after 1 second if connection could not be established
-  };
-  */
-
-  // let dbconfig = {
-  //   connectString: '115.68.55.254/opendw',
-  //   user: 'Y_H_KIM',
-  //   password: '!dydgus12'
-  // };
-
-  // let pool = dbconn.createPool(dbconfig, 'maria');
-  // let sql = "SELECT COUNT(*) CONN_CNT FROM information_schema.PROCESSLIST WHERE DB = 'svc_v3_new' AND USER = 'selfmap' AND HOST LIKE CONCAT('115.68.55.224', '%') AND COMMAND = 'Sleep'";
-  // dbconn.execQuery(pool, sql, 'maria');
-
-  // let pool = dbconn.createPool(dbconfig, 'postgres');
-  // dbconn.execQuery(pool, sql, 'postgres');
-
-  // let pool = dbconn.createPool(dbconfig, 'oracle');
-  // let sql = "SELECT COUNT(*) CONN_CNT FROM V$SESSION WHERE USERNAME='Y_H_KIM' AND STATUS='ACTIVE'";
-  // pool.then((pool) => dbconn.execQuery(pool, sql, 'oracle'))
+router.get('/sub/svResource/:idx', function (req, res, next) {
+  let path = './resource/physics/';
+  getResource(path, req.params.idx, res);   // 저장된 서비스 자원 데이터를 가져옴
 });
-
 
 const openConnPool = () => {
 
@@ -120,7 +80,7 @@ const makeSql = (type) => {
       sql += "(SELECT COUNT(*) CNT FROM information_schema.PROCESSLIST WHERE DB = ? AND USER = ? AND HOST LIKE CONCAT(?, '%') AND COMMAND = 'Sleep') A ";
       sql += ", (SELECT COUNT(*) CNT FROM information_schema.PROCESSLIST WHERE DB = ? AND USER = ? AND HOST LIKE CONCAT(?, '%') AND(COMMAND = 'Query' || COMMAND = 'Execute')) B";
     } else if (type === 'postgres') {
-      sql = "SELECT SUM(NUMBACKENDS) TOT_CONN_CNT FROM PG_STAT_DATABASE WHERE DATNAME=$1::text"
+      sql = "SELECT 0 AS ACT_CNT, 0 AS INACT_CNT, SUM(NUMBACKENDS) AS TOT_CONN_CNT FROM PG_STAT_DATABASE WHERE DATNAME=$1::text"
     }
 
   return sql;
@@ -144,6 +104,7 @@ const openSocket = () => {
         ip: curr['ip'],
         port: curr['port'],
         url: curr['url'],
+        was: curr['was'],
         dbHost: curr['dbHost'] === undefined ? [] : curr['dbHost'],
         database: curr['database'] === undefined ? [] : curr['database'],
         dbUser: curr['dbUser'] === undefined ? [] : curr['dbUser'],
@@ -154,14 +115,19 @@ const openSocket = () => {
 
       return pre;
     }, []);
+
     ws.send(JSON.stringify({message: 'hello! I am a server.', statusCode: 444}));
+
     setInterval(() => { getRmtSvResource(ws, pools, cleanData)}, 3000);
     // getRmtSvResource(ws, pools, cleanData)
-    ws.on('message', (message) => {console.log("Receive: %s", message);});
+
+    ws.on('message', (message) => {
+      console.log("Receive: %s", message);
+      pageNm = message.split(',')[0];
+      pageIdx = message.split(',')[1];
+    });
   });
 };
-
-
 
 /**
  * @description 서비스 서버의 물리자원 이용률 반복요청하는 함수
@@ -169,36 +135,10 @@ const openSocket = () => {
  * @returns 서비스 서버의 물리자원(json)
  */
 const getRmtSvResource = (websocket, pools, cleanData) => {
-  /*
-  dbFoolInfo.forEach((info, idx) => {
-    let sql = makeSql(info['type']);
-    let type = info['type'];
-
-    if (type === 'oracle') {
-      pools[idx].then((pool) => dbconn.execQuery(pool, sql, [info['user']], info['type']));
-    } else if (type === 'maria') {
-      dbconn.execQuery(pools[idx], sql, [info['database'], info['user'], info['host'], info['database'], info['user'], info['host']], info['type']);
-    } else if (type === 'postgres') {
-      dbconn.execQuery(pools[idx], sql, [info['database']], info['type']);
-    }
-  });
-  */
-  // svcList.forEach((data, idx) => {
-
-  // let data = svcList[4];
-  /**
-   * 로컬 테스트 데이터
-
-  let data = {
-      nm: 'test',
-      usage: '애플리케이션 + 맵',
-      ip: '127.0.0.1',
-      port: '8080',
-      url: 'http://localhost:8080/test2',
-  };
-  */
 
   cleanData.forEach((data, idx) => {
+
+    // DB에 접속하는 서비스가 있을경우 커넥션 개수 가져옴
     if(data['dbHost'].length > 0) {
       data['dbHost'].forEach((host, i) => {
         let type = data['type'][i];
@@ -215,32 +155,64 @@ const getRmtSvResource = (websocket, pools, cleanData) => {
           parameter = [database];
         }
 
+        // 우선 해당 호스트는 제외
+        // DB커넥션 개수 가져오는 쿼리 실행
         if (host !== '115.68.55.203') {
           dbconn.execQuery(pools[host], sql, parameter, type).then(function (result) {
             let path = './resource/dbconn/';
-            saveReource(path, data['nm'] + '_' + idx, result);
+            let saveDataFormat = {
+              act_cnt: 0,
+              in_act_cnt: 0,
+              tot_conn_cnt: 0,
+              date: getToday()
+            };
+
+            if(type === 'oracle') {
+              saveDataFormat['act_cnt'] = result[0][0];
+              saveDataFormat['in_act_cnt'] = result[0][1];
+              saveDataFormat['tot_conn_cnt'] = result[0][2];
+            } else {
+              (Object.keys(result)).forEach((key) => { saveDataFormat[key.toLowerCase()] = result[key]; });
+            }
+
+            saveReource(path, data['nm'] + '_' + idx, saveDataFormat);   // 포맷팅이 완료된 데이터 저장
+
+            if (pageNm === 'sub') {
+              if (pageIdx === idx) {
+                return websocket.send(JSON.stringify(saveDataFormat));
+              }
+            }
           });
         }
       });
     }
+
+    // 서비스 서버에 was가 있을 경우 sc.jsp 호출
+    if(data['was'].length > 0) {
+      // 일단 BBQ, JTI, 뉴스레터 서비스 서버는 제외
+      if ( !(data['nm'] === 'BBQ' || data['nm'] === 'JTI' || data['nm'] === '뉴스레터') ) {
+        request(data['url'] + '/sc.jsp', { json: true }, (err, res, body) => {
+          if (err) { return console.log(err); }   // 서비스 서버의 요청에 대한 에러처리
+
+          let today = getToday();   // 현재 시간 구함
+          let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
+          let returnData = makeReturnData(res, idx);
+          let path = './resource/physics/';
+
+          makeLogFile(logTxt, today);   // 로그파일을 만듬
+          saveReource(path, data['nm'] + '_' + idx, body);   // 서비스 서버의 물리자원 이용 데이터 저장
+
+          if (pageNm === 'sub') {
+            if(pageIdx === idx) {
+              return websocket.send(JSON.stringify(body));   // 서비스 서버의 물리자원 이용률 리턴
+            }
+          } else {
+            return websocket.send(JSON.stringify(returnData));
+          }
+        });
+      }
+    }
   });
-
-  request(data['url'] + '/sc.jsp', { json: true }, (err, res, body) => {
-    if (err) { return console.log(err); }   // 서비스 서버의 요청에 대한 에러처리
-
-    let today = getToday();   // 현재 시간 구함
-    let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
-    let returnData = makeReturnData(res, 4);
-    let path = './resource/physics/';
-
-    makeLogFile(logTxt, today);   // 로그파일을 만듬
-    saveReource(path, data['nm'] + '_' + idx, body);   // 서비스 서버의 물리자원 이용 데이터 저장
-
-    if (pageNm === 'sub') return websocket.send(JSON.stringify(body));   // 서비스 서버의 물리자원 이용률 리턴
-    else return websocket.send(JSON.stringify(returnData));
-  });
-
-  // });
 };
 
 /**
@@ -291,8 +263,8 @@ const makeLogFile = (logTxt, date) => {
  * @param {*} idx 서비스 구별을 위한 인덱스
  * @param {*} res response
  */
-const getResource = (idx, res) => {
-  readLastLines.read('./resource/' + svcList[idx].nm + '.txt', 50)
+const getResource = (path, idx, res) => {
+  readLastLines.read(path + svcList[idx].nm + '_' + idx + '.txt', 50)
     .then((lines) => {
       returnLines = '[' + lines.substring(0, lines.lastIndexOf(",")) + ']';
       res.json(returnLines);
