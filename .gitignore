@@ -65,3 +65,6 @@ info/
 
 # service server hardware resource(json)
 resource/
+
+# backup folder
+backup/
