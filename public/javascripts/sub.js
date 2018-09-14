@@ -1,23 +1,25 @@
-// 서비스 서버 상태 페이지 구성을 위한 초기화 함수
+/**
+ * @description 서비스 서버 상태 페이지 구성을 위한 초기화 함수
+ * @param {*} data 선택된 서비스리스트의 인덱스, db커넥션 존재여부, was존재여부
+ */
 subPageInit = (data) => {
-    let idx = $(data).data('idx');
-    let dbconn = $(data).data('dbconn');
-    let was = $(data).data('was');
+    let idx = $(data).data('idx');   // 선택된 서비스리스트의 인덱스
+    let dbconn = $(data).data('dbconn');   // 선택된 서비스의 db커넥션 존재여부(true or false)
+    let was = $(data).data('was');   // 선택된 서비스의 was 존재여부(true or false)
 
     makeTbSvcList(idx);   // 동적으로 테이블리스트 생성
     initGraphs();   // 라인차트 초기화
 
-    if (was) getSvResource(idx);
-    if (dbconn) getDBConn(idx);
+    if (was) getSvResource(idx);   // was가 존재할 경우 서비스 서버의 물리자원 데이터 가져옴
+    if (dbconn) getDBConn(idx);  // db커넥션이 존재할 경우 커넥션 개수 가져옴
 };
 
 /**
  * @description nodejs 서버에 원격서비스 자원 데이터 요청(json)
  * * 파일에서 몇 라인 읽어옴
- * @param {*} idx
+ * @param {*} idx 선택된 서비스 리스트의 인덱스
  */
 const getSvResource = (idx) => {
-    console.log(1111)
     $.ajax({
         method: 'GET',
         url: window.location.href + 'resource/sub/svResource/' + idx,
@@ -33,12 +35,11 @@ const getSvResource = (idx) => {
 };
 
 /**
- * @description nodejs 서버에 원격서비스 자원 데이터 요청(json)
+ * @description nodejs 서버에 DB커넥션 개수 데이터 요청(json)
  * * 파일에서 몇 라인 읽어옴
- * @param {*} idx
+ * @param {*} idx 선택된 서비스 리스트의 인덱스
  */
 const getDBConn = (idx) => {
-    console.log(2222)
     $.ajax({
         method: 'GET',
         url: window.location.href + 'resource/sub/dbConn/' + idx,
@@ -72,18 +73,33 @@ const makeTbSvcList = (idx) => {
 };
 
 /**
+ * @description 그래프 초기화 하는 함수
+ */
+const initGraphs = () => {
+    $.each(charts, (key, chart) => {
+        chart.data.datasets.forEach((dataset) => {
+            dataset.data.pop();
+        });
+        charts[key].update();
+    });
+};
+
+/**
  * @description 서버 자원 그래프 그리는 함수
  * @param {*} chartData 차트에 사용될 배열 데이터
  */
 const drawGraphs = (chartData) => {
     $.each(chartData, (key, data) => {
         if(key !== 'label' && key !== 'date') {
-            charts[key].data.labels = chartData['label'];
-            charts[key].data.date = chartData['date'];
+            charts[key].data.labels = chartData['label'];   // X축에 표시할 데이터(존재해야지 데이터가 늘어남)
+            charts[key].data.date = chartData['date'];   // 해당 점위에 마우스를 올렸을 때 표시할 데이터
+
+            // 차트에서 보여질 실데이터 추가
             charts[key].data.datasets.forEach((dataset) => {
                 dataset.data = chartData[key];
             });
-            charts[key].update();
+
+            charts[key].update();   // 차트 업데이트
         }
     });
 };
@@ -96,28 +112,18 @@ const updateGraphs = (chartData) => {
 
     $.each(chartData, (key, data) => {
         if (key !== 'label' && key !== 'date') {
-            charts[key].data.labels[charts[key].data.datasets[0].data.length] = chartData['label'][0];
+            charts[key].data.labels[charts[key].data.datasets[0].data.length] = chartData['label'][0];   // 기존 X축 데이터에 추가
 
             if (charts[key].data.date !== undefined)
-                charts[key].data.date[charts[key].data.datasets[0].data.length] = chartData['date'][0];
+                charts[key].data.date[charts[key].data.datasets[0].data.length] = chartData['date'][0];   // 해당 점위에 마우스를 올렸을 때 표시할 기존 데이터에 추가
 
+            // 차트에서 보여질 기존 실데이터에 추가
             charts[key].data.datasets.forEach((dataset) => {
                 dataset.data.push(chartData[key][0]);
             });
-            charts[key].update();
-        }
-    });
-};
 
-/**
- * @description 그래프 초기화 하는 함수
- */
-const initGraphs = () => {
-    $.each(charts, (key, chart) => {
-        chart.data.datasets.forEach((dataset) => {
-            dataset.data.pop();
-        });
-        charts[key].update();
+            charts[key].update();   // 차트 업데이트
+        }
     });
 };
 
@@ -128,7 +134,7 @@ $('#back').click(function() {
     $('#search').show();   // 검색창 보여줌
     $('#svcStat').hide();   // 서비스 상태 페이지 숨김
     $('#title').html('전체 서비스 상태표');   // 상단 타이틀 변경
-    pageNm = 'main';
-    pageIdx = -1;
-    ws.send(pageNm + ',' + pageIdx);
+    pageNm = 'main';   // 소켓통신시 공통으로 이용할 플래그 값(페이지이름)
+    pageIdx = -1;   // 소켓통신시 공통으로 이용할 플래그 값(서버리스트 인덱스)
+    ws.send(pageNm + ',' + pageIdx);   // nodeJS 서버로 데이터 송신
 });

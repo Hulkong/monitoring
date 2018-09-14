@@ -3,9 +3,9 @@
  * @param {*} svcList 서비스 리스트
  */
 const mainPageInit = () => {
-    makeTbAllSvcList();
-    modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정하는
-    // intervalView();
+    makeTbAllSvcList(); // 동적으로 테이블리스트 생성
+    modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정
+    // intervalView();   // 서비스들이 정상 상태일 때 페이지 자동전환
 };
 
 /**
@@ -14,13 +14,18 @@ const mainPageInit = () => {
  */
 const makeTbAllSvcList = () => {
     $.each(svcList, function(idx, svc) {
+
+        // 데이터가 없을 시 '-'로 표현
         const port = (svc['port'] === '' || svc['port'] === null) ? '-' : svc['port'],
+            nm = (svc['nm'] === '' || svc['nm'] === null) ? '-' : svc['nm'],
+            usage = (svc['usage'] === '' || svc['usage'] === null) ? '-' : svc['usage'],
+            ip = (svc['ip'] === '' || svc['ip'] === null) ? '-' : svc['ip'],
             status = (svc['status'] === undefined || svc['status'] === '' || svc['status'] === null) ? '-' : svc['status'];
 
         let html = '<tr idx=' + idx + ' status=' + status + '>';
-            html += '<td>' + svc['nm'] + '</td>';
-            html += '<td>' + svc['usage'] + '</td>';
-            html += '<td>' + svc['ip'] + '</td>';
+            html += '<td>' + nm + '</td>';
+            html += '<td>' + usage + '</td>';
+            html += '<td>' + ip + '</td>';
             html += '<td>' + port + '</td>';
             html += '<td>' + status + '</td>';
             html += '</tr>';
@@ -32,11 +37,12 @@ const makeTbAllSvcList = () => {
 
     // 테이블 리스트 클릭 이벤트
     $('#allSvcStat tbody tr').click(function() {
-        let idx = $(this).attr('idx');
+        let idx = $(this).attr('idx');   // 선택된 서비스 리스트의 인덱스
 
+        // 해당 서비스에 os가 존재할 경우
         if (svcList[idx]['os'].length > 0) {
             const svcNm = $(this).find('td').eq(0).text();
-            $('#allSvcStat').hide();
+            $('#allSvcStat').hide();   //
             $('#search').hide();
             $('#svcStat').css('display', 'grid');
             $('#title').html(svcNm + '서버 상태');

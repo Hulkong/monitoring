@@ -46,7 +46,12 @@ const openConnPool = () => {
 
   dbFoolInfo.forEach((dbconfig) => {
     if (dbconfig['type'] === 'oracle') {
-      dbconfig.connectString = dbconfig['host'] + '/' + dbconfig['database'];
+      if(dbconfig['host'] === '115.68.55.203') {
+        let tns = '(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = ' + dbconfig['host'] + ')(PORT = ' + dbconfig['port'] + '))(CONNECT_DATA = (SERVER = DEDICATED)(SID = ' + dbconfig['database'] + ')))';
+        dbconfig.connectString = tns;
+      } else {
+        dbconfig.connectString = dbconfig['host'] + ":" + dbconfig['port'] + '/' + dbconfig['database'];
+      }
       dbconn.createPool(dbconfig, dbconfig['type']).then((pool) => {
         obj[dbconfig['host']] = pool;
       })
@@ -118,7 +123,7 @@ const openSocket = () => {
 
     ws.send(JSON.stringify({message: 'hello! I am a server.', statusCode: 444}));
 
-    setInterval(() => { getRmtSvResource(ws, pools, cleanData)}, 3000);
+    setInterval(() => { getRmtSvResource(ws, pools, cleanData)}, 10000);
     // getRmtSvResource(ws, pools, cleanData)
 
     ws.on('message', (message) => {
@@ -157,7 +162,6 @@ const getRmtSvResource = (websocket, pools, cleanData) => {
 
         // 우선 해당 호스트는 제외
         // DB커넥션 개수 가져오는 쿼리 실행
-        if (host !== '115.68.55.203') {
           dbconn.execQuery(pools[host], sql, parameter, type).then(function (result) {
             let path = './resource/dbconn/';
             let saveDataFormat = {
@@ -178,12 +182,11 @@ const getRmtSvResource = (websocket, pools, cleanData) => {
             saveReource(path, data['nm'] + '_' + idx, saveDataFormat);   // 포맷팅이 완료된 데이터 저장
 
             if (pageNm === 'sub') {
-              if (pageIdx === idx) {
+              if (pageIdx == idx) {
                 return websocket.send(JSON.stringify(saveDataFormat));
               }
             }
           });
-        }
       });
     }
 
@@ -203,7 +206,7 @@ const getRmtSvResource = (websocket, pools, cleanData) => {
           saveReource(path, data['nm'] + '_' + idx, body);   // 서비스 서버의 물리자원 이용 데이터 저장
 
           if (pageNm === 'sub') {
-            if(pageIdx === idx) {
+            if(pageIdx == idx) {
               return websocket.send(JSON.stringify(body));   // 서비스 서버의 물리자원 이용률 리턴
             }
           } else {
