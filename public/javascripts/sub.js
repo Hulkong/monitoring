@@ -6,10 +6,12 @@ subPageInit = (data) => {
     let idx = $(data).data('idx');   // 선택된 서비스리스트의 인덱스
     let dbconn = $(data).data('dbconn');   // 선택된 서비스의 db커넥션 존재여부(true or false)
     let was = $(data).data('was');   // 선택된 서비스의 was 존재여부(true or false)
+    let status = $(data).data('status');
 
     makeTbSvcList(idx);   // 동적으로 테이블리스트 생성
     initGraphs();   // 라인차트 초기화
 
+    if (status === '장애' || status === '-') return;
     if (was) getSvResource(idx);   // was가 존재할 경우 서비스 서버의 물리자원 데이터 가져옴
     if (dbconn) getDBConn(idx);  // db커넥션이 존재할 경우 커넥션 개수 가져옴
 };
@@ -45,7 +47,8 @@ const getDBConn = (idx) => {
         url: window.location.href + 'resource/sub/dbConn/' + idx,
         statusCode: {/* 404: function () {alert("page not found");}*/ }
     }).done(function (data) {
-        // console.log(JSON.parse(data));
+        console.log(JSON.parse(data));
+        if(data.length === 0) return;
 
         let cleanData = convertData(JSON.parse(data));   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
         drawGraphs(cleanData);   // 라인차트 그리기
@@ -97,11 +100,26 @@ const drawGraphs = (chartData) => {
             // 차트에서 보여질 실데이터 추가
             charts[key].data.datasets.forEach((dataset) => {
                 dataset.data = chartData[key];
+                if (dataset.data[dataset.data.length - 1] > 90) {
+                    dataset['backgroundColor'] = 'rgba(255, 0, 0, 0.3)';
+                    dataset['borderColor'] = 'rgba(255, 0, 0, 0.3)';
+                }
             });
 
             charts[key].update();   // 차트 업데이트
         }
     });
+};
+
+const removeGraphs = (chart) => {
+    chart.data.labels.splice(0, 1);
+    chart.data.date.splice(0, 1);
+
+    chart.data.datasets.forEach((dataset) => {
+        dataset.data.splice(0, 1);
+    });
+
+    chart.update();   // 차트 업데이트
 };
 
 /**
@@ -112,10 +130,17 @@ const updateGraphs = (chartData) => {
 
     $.each(chartData, (key, data) => {
         if (key !== 'label' && key !== 'date') {
-            charts[key].data.labels[charts[key].data.datasets[0].data.length] = chartData['label'][0];   // 기존 X축 데이터에 추가
+
+            if (charts[key].data.labels.length > 3) {
+                removeGraphs(charts[key]);
+            }
+
+            let dataLng = charts[key].data.datasets[0].data.length;
+
+            charts[key].data.labels[dataLng] = chartData['label'][0];   // 기존 X축 데이터에 추가
 
             if (charts[key].data.date !== undefined)
-                charts[key].data.date[charts[key].data.datasets[0].data.length] = chartData['date'][0];   // 해당 점위에 마우스를 올렸을 때 표시할 기존 데이터에 추가
+                charts[key].data.date[charts[dataLng]] = chartData['date'][0];   // 해당 점위에 마우스를 올렸을 때 표시할 기존 데이터에 추가
 
             // 차트에서 보여질 기존 실데이터에 추가
             charts[key].data.datasets.forEach((dataset) => {
@@ -136,5 +161,6 @@ $('#back').click(function() {
     $('#title').html('전체 서비스 상태표');   // 상단 타이틀 변경
     pageNm = 'main';   // 소켓통신시 공통으로 이용할 플래그 값(페이지이름)
     pageIdx = -1;   // 소켓통신시 공통으로 이용할 플래그 값(서버리스트 인덱스)
-    ws.send(pageNm + ',' + pageIdx);   // nodeJS 서버로 데이터 송신
+    pageStatus = '정상';   // 소켓통신시 공통으로 이용할 플래그 값(서버리스트 인덱스)
+    ws.send(pageNm + ',' + pageIdx + ',' + pageStatus);   // nodeJS 서버로 데이터 송신
 });

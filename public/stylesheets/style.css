@@ -20,7 +20,8 @@ header #back {
   display: none;
   font-size: 1.5em;
   color: black;
-  float: right
+  float: right;
+  cursor: pointer;
 }
 
 section {

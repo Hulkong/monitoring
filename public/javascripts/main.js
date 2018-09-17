@@ -38,9 +38,10 @@ const makeTbAllSvcList = () => {
     // 테이블 리스트 클릭 이벤트
     $('#allSvcStat tbody tr').click(function() {
         let idx = $(this).attr('idx');   // 선택된 서비스 리스트의 인덱스
+        let status = $(this).attr('status');
 
         // 해당 서비스에 os가 존재할 경우
-        if (svcList[idx]['os'].length > 0) {
+        if (svcList[idx]['os'].length) {
             const svcNm = $(this).find('td').eq(0).text();
             $('#allSvcStat').hide();   //
             $('#search').hide();
@@ -49,12 +50,13 @@ const makeTbAllSvcList = () => {
             $('#back').show();
             pageNm = 'sub';
             pageIdx = idx;
-            ws.send(pageNm + ',' + pageIdx);
+            ws.send(pageNm + ',' + pageIdx + ',' + status);
 
             // 현재 클릭된 리스트의 데이터들을 임시 저장함
             $(this).data('idx', idx);
             $(this).data('dbconn', true);
             $(this).data('was', true);
+            $(this).data('status', status);
 
             if (svcList[idx]['dbHost'] === undefined) {
                 $('#dbconn').hide();
@@ -98,7 +100,6 @@ const typingSearch = () => {
     let data = $('#search input').val();
     let hangulReq = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/;
 
-    console.log(data)
     // 검색이 하나도 없을 경우
     if (data.length === 0) {
         $('#allSvcStat tbody tr').show();
