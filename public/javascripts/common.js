@@ -5,7 +5,24 @@ const commInit = () => {
     charts = {};
     pageNm = 'main'
     pageIdx = -1;
-    $('#resource canvas').each((idx, ele) => { makeGraph(ele);});
+
+    $('#resource canvas').each((idx, ele) => {
+        let key = $(ele).attr('id');
+        let option = {};
+        if (!(key === 'dbconn' || key === 'thread')) {
+            option.scales = {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true,
+                        steps: 10,
+                        stepValue: 5,
+                        max: 100
+                    }
+                }]
+            };
+        }
+        makeGraph(ele, option);
+    });
     connectNodeJs();   // nodejs 서버 웹소켓 생성 및 연결
 };
 
@@ -24,7 +41,7 @@ const openSocket = () => {
     // 서버와 통신
     ws.onmessage = (event) => {
         let data = JSON.parse(event['data']);
-        if (data['statusCode'] === 444) return;   // 처음 nodejs 서버와 소켓연결일 때
+        if (data['statusCode'] === 444 || data['status'] === 500) return;   // 처음 nodejs 서버와 소켓연결일 때
         console.log("Server message: ", data)
 
         if(pageNm === 'sub') {
@@ -35,7 +52,11 @@ const openSocket = () => {
         }
     };
 
-    ws.onerror = (event) => { console.log("Server error message: ", event.data) };   // error event handler
+    // error event handler
+    ws.onerror = (event) => {
+        console.log("Server error message: ", event);
+        openSocket();
+    };
 };
 
 /**
@@ -45,7 +66,7 @@ const openSocket = () => {
 const changeStatusView = (data) => {
     let statTxt = $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text();
 
-    if (data['statusCode'] === 200) {   // 원격 서버와의 통신이 정상일 때
+    if (data['statusCode'] === 200 || data['statusCode'] === 406) {   // 원격 서버와의 통신이 정상일 때
 
         if (statTxt === '정상') return;
         $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text('정상');
@@ -53,10 +74,10 @@ const changeStatusView = (data) => {
 
     } else {   // 원격 서버 장애발생시
 
+        // pushMtoSlack(svcList[data['idx']]);   // 슬랙앱으로 메시지 푸쉬
         if (statTxt === '장애') return;
         $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text('장애');
         $('#allSvcStat tbody tr').eq(data['idx']).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
-        // pushMtoSlack(svcList[idx]);   // 슬랙앱으로 메시지 푸쉬
     }
 };
 
@@ -95,8 +116,9 @@ const connectNodeJs = () => {
  */
 const pushMtoSlack = (svcInfo) => {
     const data = {
-        token: 'xoxp-334004932067-334057480820-420123985027-ccf47ec453b6e4bf258bcbe5fcb9555c',
-        channel: 'C9U1GKAEQ',
+        token: 'xoxp-334004932067-334057480820-438063900374-fa2953dbc464de0421c4e0466979ccee',
+        // channel: 'C9U1GKAEQ',
+        channel: 'CCVN17YQ7',
         text: svcInfo['nm'] + '(' + svcInfo['usage'] + ') 서버에 장애가 발생하였습니다.',
         username: 'hulkong'
     };
@@ -251,7 +273,7 @@ const compDate = (before, current, sep) => {
  * @description 그래프 프레임 만드는 함수
  * @param {*} ele 차트그리기 위한 html 엘리먼트
  */
-const makeGraph = (ele) => {
+const makeGraph = (ele, customOption) => {
     let key = $(ele).attr('id');
     let data = {
         labels: [],
@@ -260,6 +282,7 @@ const makeGraph = (ele) => {
                 label: "",
                 fill: true,
                 backgroundColor: "rgba(32, 162, 219, 0.3)", // <-- supposed to be light blue
+                borderColor: 'rgba(32, 162, 219, 0.3)',
                 data: []
             }
         ]
@@ -276,6 +299,7 @@ const makeGraph = (ele) => {
             }],
             yAxes: [{
                 stacked: true,
+                display: true
             }]
         },
         legend: {
@@ -293,10 +317,11 @@ const makeGraph = (ele) => {
             }
         }
     }
+
     let myChart = new Chart(ele, {
         type: 'line',
         data: data,
-        options: options,
+        options: $.extend({}, options, customOption)
     });
     charts[key] = myChart;
 };

@@ -11,6 +11,7 @@ const dbFoolInfo = require('../info/DB-FOOL-INFO');
 const dbconn = require('../lib/db-connect');
 let pageNm = 'main';
 let pageIdx = -1;
+let pageStaus = '정상';
 
 /**
  * @description 해당 url에 대한 서버 물리자원 이용률 가져옴
@@ -123,13 +124,79 @@ const openSocket = () => {
 
     ws.send(JSON.stringify({message: 'hello! I am a server.', statusCode: 444}));
 
-    setInterval(() => { getRmtSvResource(ws, pools, cleanData)}, 10000);
-    // getRmtSvResource(ws, pools, cleanData)
+    makeDirectory('./logs/');
+    makeDirectory('./resource/dbconn/');
+    makeDirectory('./resource/physics/');
+
+    // repeatExecution(ws, undefined, cleanData);
+    setInterval(() => { repeatExecution(ws, pools, cleanData)}, 10000);
 
     ws.on('message', (message) => {
       console.log("Receive: %s", message);
       pageNm = message.split(',')[0];
       pageIdx = message.split(',')[1];
+      pageStaus = message.split(',')[2];
+    });
+  });
+};
+
+/**
+ * @description db커넥션 정보 가져오는 함수
+ * @param {*} data 서비스 정보
+ * @returns 커넥션 개수
+ */
+const getDBconn = (pools, data) => {
+  return new Promise((resolve, reject) => {
+    data['dbHost'].forEach((host, i) => {
+      let type = data['type'][i];
+      let database = data['database'][i];
+      let user = data['dbUser'][i];
+      let sql = makeSql(type);
+      let parameter = [];
+
+      if (type === 'oracle') {
+        parameter = [user];
+      } else if (type === 'maria') {
+        parameter = [database, user, host, database, user, host];
+      } else if (type === 'postgres') {
+        parameter = [database];
+      }
+
+      // 우선 해당 호스트는 제외
+      // DB커넥션 개수 가져오는 쿼리 실행
+      dbconn.execQuery(pools[host], sql, parameter, type).then(function (result) {
+        let saveDataFormat = {
+          act_cnt: 0,
+          in_act_cnt: 0,
+          tot_conn_cnt: 0,
+          date: getToday()
+        };
+
+        if (type === 'oracle') {
+          saveDataFormat['act_cnt'] = result[0][0];
+          saveDataFormat['in_act_cnt'] = result[0][1];
+          saveDataFormat['tot_conn_cnt'] = result[0][2];
+        } else {
+          (Object.keys(result)).forEach((key) => { saveDataFormat[key.toLowerCase()] = result[key]; });
+        }
+
+        resolve(saveDataFormat);
+      });
+    });
+  });
+};
+
+const getSvResource = (data, idx) => {
+  return new Promise((resolve, reject) => {
+    request(data['url'], { json: true }, (err, res, body) => {
+      if (err) { return console.log(err); }   // 서비스 서버의 요청에 대한 에러처리
+
+      let today = getToday();   // 현재 시간 구함
+      let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
+
+      makeLogFile(logTxt, today);   // 로그파일을 만듬
+
+      resolve(res);
     });
   });
 };
@@ -139,80 +206,54 @@ const openSocket = () => {
  * @param {*} websocket 연결된 웹소켓
  * @returns 서비스 서버의 물리자원(json)
  */
-const getRmtSvResource = (websocket, pools, cleanData) => {
-
+const repeatExecution = (websocket, pools, cleanData) => {
   cleanData.forEach((data, idx) => {
 
     // DB에 접속하는 서비스가 있을경우 커넥션 개수 가져옴
-    if(data['dbHost'].length > 0) {
-      data['dbHost'].forEach((host, i) => {
-        let type = data['type'][i];
-        let database = data['database'][i];
-        let user = data['dbUser'][i];
-        let sql = makeSql(type);
-        let parameter = [];
+    if(pools !== undefined && data['dbHost'].length > 0) {
 
-        if (type === 'oracle') {
-          parameter = [user];
-        } else if (type === 'maria') {
-          parameter = [database, user, host, database, user, host];
-        } else if (type === 'postgres') {
-          parameter = [database];
-        }
+      getDBconn(pools, data)
+        .then((saveDataFormat) => {
+          let path = './resource/dbconn/';
+          saveReource(path, data['nm'] + '(' + data['usage'] + ')', saveDataFormat);   // 포맷팅이 완료된 데이터 저장
 
-        // 우선 해당 호스트는 제외
-        // DB커넥션 개수 가져오는 쿼리 실행
-          dbconn.execQuery(pools[host], sql, parameter, type).then(function (result) {
-            let path = './resource/dbconn/';
-            let saveDataFormat = {
-              act_cnt: 0,
-              in_act_cnt: 0,
-              tot_conn_cnt: 0,
-              date: getToday()
-            };
-
-            if(type === 'oracle') {
-              saveDataFormat['act_cnt'] = result[0][0];
-              saveDataFormat['in_act_cnt'] = result[0][1];
-              saveDataFormat['tot_conn_cnt'] = result[0][2];
-            } else {
-              (Object.keys(result)).forEach((key) => { saveDataFormat[key.toLowerCase()] = result[key]; });
+          if (pageNm === 'sub') {
+            if (pageIdx == idx && pageStaus !== '장애') {
+              return websocket.send(JSON.stringify(saveDataFormat));
             }
-
-            saveReource(path, data['nm'] + '_' + idx, saveDataFormat);   // 포맷팅이 완료된 데이터 저장
-
-            if (pageNm === 'sub') {
-              if (pageIdx == idx) {
-                return websocket.send(JSON.stringify(saveDataFormat));
-              }
-            }
-          });
-      });
+          }
+        }).catch(function (err) {
+          console.log('then error : ', err); // then error :  Error: Error in then()
+        });
     }
 
     // 서비스 서버에 was가 있을 경우 sc.jsp 호출
-    if(data['was'].length > 0) {
+    if(data['url'].length > 0) {
       // 일단 BBQ, JTI, 뉴스레터 서비스 서버는 제외
-      if ( !(data['nm'] === 'BBQ' || data['nm'] === 'JTI' || data['nm'] === '뉴스레터') ) {
-        request(data['url'] + '/sc.jsp', { json: true }, (err, res, body) => {
-          if (err) { return console.log(err); }   // 서비스 서버의 요청에 대한 에러처리
+      if ( !(data['nm'] === 'BBQ' || data['nm'] === 'JTI') ) {
+        /*
+         * 테스트 데이터
+         * 데이터 이름 : TEST
+         */
 
-          let today = getToday();   // 현재 시간 구함
-          let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
-          let returnData = makeReturnData(res, idx);
-          let path = './resource/physics/';
-
-          makeLogFile(logTxt, today);   // 로그파일을 만듬
-          saveReource(path, data['nm'] + '_' + idx, body);   // 서비스 서버의 물리자원 이용 데이터 저장
-
-          if (pageNm === 'sub') {
-            if(pageIdx == idx) {
-              return websocket.send(JSON.stringify(body));   // 서비스 서버의 물리자원 이용률 리턴
+        getSvResource(data, idx)
+          .then((res) => {
+            if (data['was'].length > 0 && res['statusCode'] === 200 && data['nm'] !== '뉴스레터') {
+              let path = './resource/physics/';
+              saveReource(path, data['nm'] + '(' + data['usage'] + ')', res['body']);   // 서비스 서버의 물리자원 이용 데이터 저장
             }
-          } else {
-            return websocket.send(JSON.stringify(returnData));
-          }
-        });
+
+            if (pageNm === 'sub') {
+              if (pageIdx == idx && pageStaus !== '장애') {
+                return websocket.send(JSON.stringify(res['body']));   // 서비스 서버의 물리자원 이용률 리턴
+              }
+            } else {
+              let returnData = makeReturnData(res, idx, data['nm']);
+              return websocket.send(JSON.stringify(returnData));
+            }
+          }).catch((err)=> {
+            console.log('then error : ', err); // then error :  Error: Error in then()
+          });
       }
     }
   });
@@ -223,11 +264,26 @@ const getRmtSvResource = (websocket, pools, cleanData) => {
  * @param {*} res reponse데이터
  * @param {*} index 서비스 구별을 위한 인덱스
  */
-const makeReturnData = (res, index) => {
+const makeReturnData = (res, index, nm) => {
   return {
     idx: index,
-    statusCode: res['statusCode']
+    statusCode: res['statusCode'],
+    nm: nm
   };
+};
+
+
+
+/**
+ * @description 디렉토리가 없을 시 생성하는 함수
+ * @param {*} path 저장할 디렉토리 경로
+ */
+const makeDirectory = (path) => {
+
+  // 폴더가 존재하는지 확인 후 로직 실행
+  searchFolder(path).then((files) => {
+    if (files === undefined) createFolder(path);
+  });
 };
 
 /**
@@ -237,28 +293,7 @@ const makeReturnData = (res, index) => {
  */
 const makeLogFile = (logTxt, date) => {
   let path = './logs/';
-
-  // 폴더가 존재하는지 확인 후 로직 실행
-  searchFolder(path).then((files) => {
-    if(files === undefined) {
-      createFolder(path);
-    } else {
-      // 디렉토리안 모든 파일에 대하여 1GB이상일 때 압축
-      files.forEach(function (file) {
-        fs.stat(path + file, function (err, stats) {
-          // console.log(stats);
-          let size = changeUnit(stats['size'], 'gb');
-
-          // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
-          if(size >= 1) {
-            compact(path, file);   // 파일을 압축
-            if(file.indexOf('gz') < 0) removeFile(path + file);   // 압축한 원본파일을 삭제(압축파일 제외)
-          }
-        });
-      });
-      fs.appendFile(path + date.split(' ')[0] + '.log', logTxt + '\n', (err) => { if (err) throw err; });
-    }
-  });
+  fs.appendFile(path + date.split(' ')[0] + '.log', logTxt + '\n', (err) => { if (err) throw err; });
 };
 
 /**
@@ -267,43 +302,29 @@ const makeLogFile = (logTxt, date) => {
  * @param {*} res response
  */
 const getResource = (path, idx, res) => {
-  readLastLines.read(path + svcList[idx].nm + '_' + idx + '.txt', 50)
+  readLastLines.read(path + svcList[idx].nm + '(' + svcList[idx].usage + ')' + '.txt', 50)
     .then((lines) => {
       returnLines = '[' + lines.substring(0, lines.lastIndexOf(",")) + ']';
+      res.json(returnLines);
+    }).catch(function (err) {
+      console.log('then error : ', err); // then error :  Error: Error in then()
+      returnLines = '[]';
       res.json(returnLines);
     });
 };
 
 /**
- * 원격 서비스의 물리자원 데이터를 노드서버에 저장하는 함수
+ * @description 원격 서비스의 물리자원 데이터를 노드서버에 저장하는 함수
  * @param {*} name 서비스 이름
  * @param {*} data 저장할 데이터
  */
 const saveReource = (path, name, data) => {
-  // let path = './resource/';
 
-  // 폴더가 존재하는지 확인 후 로직 실행
-  searchFolder(path).then((files) => {
-    if(files === undefined) {
-      createFolder(path);
-    } else {
-      // 디렉토리안 모든 파일에 대하여 1GB이상일 때 압축
-      files.forEach(function (file) {
+  let file = name + '.txt';
 
-        fs.stat(path + file, function (err, stats) {
-          // console.log(stats);
-          let size = changeUnit(stats['size'], 'gb');
-
-          // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
-          if(size >= 1) {
-            compact(path, file);   // 파일을 압축
-            if(file.indexOf('gz') < 0) removeFile(path + file);   // 압축한 원본파일을 삭제(압축파일 제외)
-          }
-
-        });
-      });
-      fs.appendFile(path + name + '.txt', JSON.stringify(data) + ',\n', (err) => { if (err) throw err; });
-    }
+  // 파일을 압축
+  compact(path, file).then(() => {
+    fs.appendFile(path + file, JSON.stringify(data) + ',\n', (err) => { if (err) throw err; });
   });
 };
 
@@ -366,7 +387,7 @@ const makeLogText = (params) => {
   let nm = params['nm'];
   let usage = '(' + params['usage'] + ')';
   let ip = params['ip'] + ':' + params['port'];
-  let url = params['url'];
+  let url = params['url'].split('/sc')[0];
   let log = nm + ' ' + usage + ' ' + ip + ' ' + url;
 
   return log;
@@ -414,16 +435,33 @@ const removeFile = (path) => {
  * @param {*} fileName 저장할 파일이름
  */
 const compact = (path, file) => {
-  let fileName = file.substring(0, file.lastIndexOf(".txt"));   // 확장자 제거
-  let today = getToday();
 
-  if (fileName.length === 0) return;
+  return new Promise((resolve, reject) => {
+    fs.stat(path + file, function (err, stats) {
+      let size = changeUnit(stats['size'], 'gb');
 
-  fs.createReadStream(path + file)
-    .pipe(zlib.createGzip())
-    .on('data', () => process.stdout.write('compact ing...\n'))
-    .pipe(fs.createWriteStream(path + fileName + '_' + today.split(' ')[0] + '.gz'))
-    .on('finish', () => console.log('Compact Finished'));
+      // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
+      if (size >= 1) {
+        let fileName = file.substring(0, file.lastIndexOf(".txt"));   // 확장자 제거
+        let today = getToday();
+
+        if (fileName.length === 0) return;
+
+        fs.createReadStream(path + file)
+          .pipe(zlib.createGzip())
+          .on('data', () => process.stdout.write('compact ing...\n'))
+          .pipe(fs.createWriteStream(path + fileName + '_' + today.split(' ')[0] + '.gz'))
+          .on('finish', () => {
+            console.log('Compact Finished');
+            if (file.indexOf('gz') < 0) removeFile(path + file);   // 압축한 원본파일을 삭제(압축파일 제외)
+
+            resolve();
+          });
+      } else {
+        resolve();
+      }
+    });
+  });
 };
 
 module.exports = router;
