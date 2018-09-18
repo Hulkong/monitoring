@@ -38,7 +38,7 @@ const makeTbAllSvcList = () => {
     // 테이블 리스트 클릭 이벤트
     $('#allSvcStat tbody tr').click(function() {
         let idx = $(this).attr('idx');   // 선택된 서비스 리스트의 인덱스
-        let status = $(this).attr('status');
+        let status = $(this).find('td').eq(4).text();
 
         // 해당 서비스에 os가 존재할 경우
         if (svcList[idx]['os'].length) {

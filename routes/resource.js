@@ -137,6 +137,10 @@ const openSocket = () => {
       pageIdx = message.split(',')[1];
       pageStaus = message.split(',')[2];
     });
+
+    ws.on('error', (err) => {
+      console.log(err);
+    })
   });
 };
 
@@ -181,7 +185,7 @@ const getDBconn = (pools, data) => {
         }
 
         resolve(saveDataFormat);
-      });
+      }).catch((msg, err) => reject(msg, err));
     });
   });
 };
@@ -189,7 +193,16 @@ const getDBconn = (pools, data) => {
 const getSvResource = (data, idx) => {
   return new Promise((resolve, reject) => {
     request(data['url'], { json: true }, (err, res, body) => {
-      if (err) { return console.log(err); }   // 서비스 서버의 요청에 대한 에러처리
+      // 서비스 서버의 요청에 대한 에러처리
+      if (err) {
+        let sendData = makeStatData(503, idx, data['nm']);
+        reject({
+          msg: 'request of ' + data['nm'] + '(' + data['usage'] + ')' + ' is failed!',
+          err: err,
+          sendData: sendData
+        });
+        return;
+      }
 
       let today = getToday();   // 현재 시간 구함
       let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
@@ -222,9 +235,7 @@ const repeatExecution = (websocket, pools, cleanData) => {
               return websocket.send(JSON.stringify(saveDataFormat));
             }
           }
-        }).catch(function (err) {
-          console.log('then error : ', err); // then error :  Error: Error in then()
-        });
+        }).catch(errorHandling);
     }
 
     // 서비스 서버에 was가 있을 경우 sc.jsp 호출
@@ -243,20 +254,27 @@ const repeatExecution = (websocket, pools, cleanData) => {
               saveReource(path, data['nm'] + '(' + data['usage'] + ')', res['body']);   // 서비스 서버의 물리자원 이용 데이터 저장
             }
 
-            if (pageNm === 'sub') {
-              if (pageIdx == idx && pageStaus !== '장애') {
+            if (pageNm === 'sub') {   // sub페이지 일 때
+              if (pageIdx == idx && pageStaus !== '장애') {   // 선택된 페이지의 서비스 인덱스일 때와 장애가 아닐 때
                 return websocket.send(JSON.stringify(res['body']));   // 서비스 서버의 물리자원 이용률 리턴
               }
-            } else {
-              let returnData = makeReturnData(res, idx, data['nm']);
-              return websocket.send(JSON.stringify(returnData));
+            } else {   // main페이지 일 때
+              let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태
+              return websocket.send(JSON.stringify(sendData));
             }
-          }).catch((err)=> {
-            console.log('then error : ', err); // then error :  Error: Error in then()
+          }).catch(({msg, err, sendData}) => {
+            errorHandling(msg, err);
+            if (pageNm !== 'sub') {
+              return websocket.send(JSON.stringify(sendData));
+            }
           });
       }
     }
   });
+};
+
+const errorHandling = (msg, err) => {
+  //if(err !== undefined) console.error(err.message, err.stack);
 };
 
 /**
@@ -264,15 +282,13 @@ const repeatExecution = (websocket, pools, cleanData) => {
  * @param {*} res reponse데이터
  * @param {*} index 서비스 구별을 위한 인덱스
  */
-const makeReturnData = (res, index, nm) => {
+const makeStatData = (statusCode, index, nm) => {
   return {
     idx: index,
-    statusCode: res['statusCode'],
+    statusCode: statusCode,
     nm: nm
   };
 };
-
-
 
 /**
  * @description 디렉토리가 없을 시 생성하는 함수
@@ -293,7 +309,15 @@ const makeDirectory = (path) => {
  */
 const makeLogFile = (logTxt, date) => {
   let path = './logs/';
-  fs.appendFile(path + date.split(' ')[0] + '.log', logTxt + '\n', (err) => { if (err) throw err; });
+  fs.appendFile(path + date.split(' ')[0] + '.log', logTxt + '\n'
+    , (err) => {
+
+      if (err) {
+        errorHandling('Failed to add content to the file!', err);
+        return;
+        // throw err;
+      }
+    });
 };
 
 /**
@@ -306,10 +330,10 @@ const getResource = (path, idx, res) => {
     .then((lines) => {
       returnLines = '[' + lines.substring(0, lines.lastIndexOf(",")) + ']';
       res.json(returnLines);
-    }).catch(function (err) {
-      console.log('then error : ', err); // then error :  Error: Error in then()
+    }).catch((err) => {
       returnLines = '[]';
       res.json(returnLines);
+      errorHandling('Could not read the contents of the file!', err);
     });
 };
 
@@ -324,8 +348,16 @@ const saveReource = (path, name, data) => {
 
   // 파일을 압축
   compact(path, file).then(() => {
-    fs.appendFile(path + file, JSON.stringify(data) + ',\n', (err) => { if (err) throw err; });
-  });
+    fs.appendFile(path + file, JSON.stringify(data) + ',\n'
+      , (err) => {
+
+        if (err) {
+          errorHandling('Failed to add content to the file!', err);
+          return;
+          // throw err;
+        }
+      });
+  }).catch(errorHandling);
 };
 
 /**
@@ -364,15 +396,19 @@ const changeUnit = (byte, unit) => {
   if (unit === 'kb') {
     let kb = byte / (1024);
     return Math.round(kb * 100) / 100.0;
+
   } else if (unit === 'mb') {
     let mb = byte / (1024 * 1024);
     return Math.round(mb * 100) / 100.0;
+
   } else if (unit === 'gb') {
     let gb = byte / (1024 * 1024 * 1024);
     return Math.round(gb * 100) / 100.0;
+
   } else if (unit === 'tb') {
     let tb = size / (1024 * 1024 * 1024 * 1024);
     return Math.round(tb * 100) / 100.0;
+
   } else {
     console.log('단위를 입력해주세요.(kb, mb, gb, tb)');
   }
@@ -399,7 +435,11 @@ const makeLogText = (params) => {
  */
 const createFolder = (path) => {
   fs.mkdir(path, 0666, function (err) {
-    if (!err) console.log('create new directory');
+    if (err) {
+      errorHandling('not create new directory!', err);
+    } else {
+      console.log('create new directory');
+    }
   });
 };
 
@@ -411,8 +451,14 @@ const createFolder = (path) => {
 const searchFolder = (path) => {
   return new Promise((resolve, reject) => {
     fs.readdir(path, function (err, files) {
-      if (err) console.log('not search directory');
-      resolve(files);
+
+      if (err) {
+        console.log('not search directory');
+        resolve(files);
+        return;
+      }
+
+      console.log('search directory');
     });
   });
 }
@@ -423,9 +469,12 @@ const searchFolder = (path) => {
  */
 const removeFile = (path) => {
   fs.unlink(path, function (err) {
+
     if (err) {
-      return console.error(err);
+      errorHandling('Unable to remove file!', err);
+      return;
     }
+
     console.log("remove file");
   });
 };
@@ -438,6 +487,12 @@ const compact = (path, file) => {
 
   return new Promise((resolve, reject) => {
     fs.stat(path + file, function (err, stats) {
+
+      if(err) {
+        reject('Unable to get file information!', err);
+        return;
+      }
+
       let size = changeUnit(stats['size'], 'gb');
 
       // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
