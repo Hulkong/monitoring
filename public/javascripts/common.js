@@ -55,7 +55,8 @@ const openSocket = () => {
     // error event handler
     ws.onerror = (event) => {
         console.log("Server error message: ", event);
-        openSocket();
+        pushMtoSlack('NodeJS 서버 소켓이 끊어졌습니다!');   // 슬랙앱으로 메시지 푸쉬
+        ws.close();
     };
 };
 
@@ -74,10 +75,11 @@ const changeStatusView = (data) => {
 
     } else {   // 원격 서버 장애발생시
 
-        // pushMtoSlack(svcList[data['idx']]);   // 슬랙앱으로 메시지 푸쉬
         if (statTxt === '장애') return;
         $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text('장애');
         $('#allSvcStat tbody tr').eq(data['idx']).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
+
+        // pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.');   // 슬랙앱으로 메시지 푸쉬
     }
 };
 
@@ -114,12 +116,13 @@ const connectNodeJs = () => {
  * @param text: 메시지
  * @param username: 송신자
  */
-const pushMtoSlack = (svcInfo) => {
+const pushMtoSlack = (text) => {
+    /*
     const data = {
-        token: 'xoxp-334004932067-334057480820-438063900374-fa2953dbc464de0421c4e0466979ccee',
+        token: 'xoxp-334004932067-334057480820-437811056805-e8f42bd236483af2166382228d24e048',
         // channel: 'C9U1GKAEQ',
         channel: 'CCVN17YQ7',
-        text: svcInfo['nm'] + '(' + svcInfo['usage'] + ') 서버에 장애가 발생하였습니다.',
+        text: text,
         username: 'hulkong'
     };
 
@@ -127,7 +130,24 @@ const pushMtoSlack = (svcInfo) => {
         method: 'POST',
         url: 'https://slack.com/api/chat.postMessage',
         data: data,
-        statusCode: {/* 404: function () {alert("page not found");}*/}
+    }).done(function (data) {
+        console.log(data);
+    }).fail(function (jqXHR, textStatus) {
+        // alert("Request failed: " + textStatus);
+        console.log(textStatus);
+    });
+    */
+
+    $.ajax({
+        method: 'POST',
+        url: 'https://hooks.slack.com/services/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',
+        data: 'payload=' + JSON.stringify({
+            "channel": "#service-monitoring",
+            "text": text,
+            "username": "hulkong",
+            "icon_emoji": ":ghost:"
+        })
+        // dataType: 'json'
     }).done(function (data) {
         console.log(data);
     }).fail(function (jqXHR, textStatus) {

@@ -2,7 +2,7 @@
  * @description 서비스 서버 상태 페이지 구성을 위한 초기화 함수
  * @param {*} data 선택된 서비스리스트의 인덱스, db커넥션 존재여부, was존재여부
  */
-subPageInit = (data) => {
+const subPageInit = (data) => {
     let idx = $(data).data('idx');   // 선택된 서비스리스트의 인덱스
     let dbconn = $(data).data('dbconn');   // 선택된 서비스의 db커넥션 존재여부(true or false)
     let was = $(data).data('was');   // 선택된 서비스의 was 존재여부(true or false)
@@ -11,7 +11,7 @@ subPageInit = (data) => {
     makeTbSvcList(idx);   // 동적으로 테이블리스트 생성
     initGraphs();   // 라인차트 초기화
 
-    if (status === '장애' || status === '-') return;
+    // if (status === '장애' || status === '-') return;
     if (was) getSvResource(idx);   // was가 존재할 경우 서비스 서버의 물리자원 데이터 가져옴
     if (dbconn) getDBConn(idx);  // db커넥션이 존재할 경우 커넥션 개수 가져옴
 };
@@ -47,7 +47,7 @@ const getDBConn = (idx) => {
         url: window.location.href + 'resource/sub/dbConn/' + idx,
         statusCode: {/* 404: function () {alert("page not found");}*/ }
     }).done(function (data) {
-        console.log(JSON.parse(data));
+        // console.log(JSON.parse(data));
         if(data.length === 0) return;
 
         let cleanData = convertData(JSON.parse(data));   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
@@ -80,8 +80,10 @@ const makeTbSvcList = (idx) => {
  */
 const initGraphs = () => {
     $.each(charts, (key, chart) => {
+        chart.data.labels = [];
+        chart.data.date = [];
         chart.data.datasets.forEach((dataset) => {
-            dataset.data.pop();
+            dataset.data = [];
         });
         charts[key].update();
     });
