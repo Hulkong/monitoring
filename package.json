@@ -24,6 +24,7 @@
     "pg-pool": "^2.0.3",
     "read-last-lines": "^1.6.0",
     "request": "^2.88.0",
+    "slack-node": "^0.1.8",
     "ws": "^6.0.0"
   }
 }

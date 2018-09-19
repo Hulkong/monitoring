@@ -42,7 +42,7 @@ const openSocket = () => {
     ws.onmessage = (event) => {
         let data = JSON.parse(event['data']);
         if (data['statusCode'] === 444 || data['status'] === 500) return;   // 처음 nodejs 서버와 소켓연결일 때
-        console.log("Server message: ", data)
+        // console.log("Server message: ", data)
 
         if(pageNm === 'sub') {
             let cleanData = convertData([data]);
@@ -55,7 +55,7 @@ const openSocket = () => {
     // error event handler
     ws.onerror = (event) => {
         console.log("Server error message: ", event);
-        pushMtoSlack('NodeJS 서버 소켓이 끊어졌습니다!');   // 슬랙앱으로 메시지 푸쉬
+        // pushMtoSlack('NodeJS 서버 소켓이 끊어졌습니다!');   // 슬랙앱으로 메시지 푸쉬
         ws.close();
     };
 };
@@ -75,10 +75,21 @@ const changeStatusView = (data) => {
 
     } else {   // 원격 서버 장애발생시
 
-        if (statTxt === '장애') return;
+        if (statTxt === '장애') {
+
+            // 슬랙앱으로 메시지 보낸 후 다음 메시지는 30분후에 장애 발생했을 때 보냄
+            setTimeout(() => {
+                let idx = data['idx'];
+                let tmpStatTxt = $('#allSvcStat tbody tr').eq(idx).find('td').eq(4).text();
+                if (tmpStatTxt === '장애')
+                    pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.');   // 슬랙앱으로 메시지 푸쉬
+            }, 1000 * 60 * 30);
+
+            return;
+        }
+
         $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text('장애');
         $('#allSvcStat tbody tr').eq(data['idx']).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
-
         // pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.');   // 슬랙앱으로 메시지 푸쉬
     }
 };

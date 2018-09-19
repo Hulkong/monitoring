@@ -6,8 +6,10 @@ const zlib = require('zlib');
 const readLastLines = require('read-last-lines');
 const WebSocketServer = require("ws").Server;
 const wss = new WebSocketServer({ port: 3001 });
+const Slack = require('slack-node');
 const svcList = require('../info/SERVICE-LIST');
 const dbFoolInfo = require('../info/DB-FOOL-INFO');
+const slackInfo = require('../info/SLACK-INFO');
 const dbconn = require('../lib/db-connect');
 let pageNm = 'main';
 let pageIdx = -1;
@@ -128,7 +130,7 @@ const openSocket = () => {
     makeDirectory('./resource/dbconn/');
     makeDirectory('./resource/physics/');
 
-    // repeatExecution(ws, undefined, cleanData);
+    repeatExecution(ws, undefined, cleanData);
     setInterval(() => { repeatExecution(ws, pools, cleanData)}, 10000);
 
     ws.on('message', (message) => {
@@ -193,6 +195,7 @@ const getDBconn = (pools, data) => {
 const getSvResource = (data, idx) => {
   return new Promise((resolve, reject) => {
     request(data['url'], { json: true }, (err, res, body) => {
+
       // 서비스 서버의 요청에 대한 에러처리
       if (err) {
         let sendData = makeStatData(503, idx, data['nm']);
@@ -274,6 +277,8 @@ const repeatExecution = (websocket, pools, cleanData) => {
 };
 
 const errorHandling = (msg, err) => {
+  console.log(msg)
+  // pushMtoSlack(msg);
   //if(err !== undefined) console.error(err.message, err.stack);
 };
 
@@ -517,6 +522,28 @@ const compact = (path, file) => {
       }
     });
   });
+};
+
+/**
+ * @description 장애 or 경고 발생시 해당 서버에 대하여 관리자에게 슬랙 앱으로 메시지 푸쉬하는 함수
+ * @param token: 슬랙에서 발급받은 토큰
+ * @param channel: 메시지 수신 경로(채널)
+ * @param text: 메시지
+ * @param username: 송신자
+ */
+const pushMtoSlack = (text) => {
+
+  webhookUri = 'https://hooks.slack.com/services/' + slackInfo['accessKey'];
+
+  slack = new Slack();
+  slack.setWebhook(webhookUri);
+
+  slack.webhook({
+    channel: slackInfo['channel'],
+    username: slackInfo['username'],
+    text: text,
+    icon_emoji: ":ghost:"
+  }, (err, response) => console.log(response) );
 };
 
 module.exports = router;
