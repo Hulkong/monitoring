@@ -117,34 +117,13 @@ const connectNodeJs = () => {
  * @param username: 송신자
  */
 const pushMtoSlack = (text) => {
-    /*
-    const data = {
-        token: 'xoxp-334004932067-334057480820-437811056805-e8f42bd236483af2166382228d24e048',
-        // channel: 'C9U1GKAEQ',
-        channel: 'CCVN17YQ7',
-        text: text,
-        username: 'hulkong'
-    };
-
     $.ajax({
         method: 'POST',
-        url: 'https://slack.com/api/chat.postMessage',
-        data: data,
-    }).done(function (data) {
-        console.log(data);
-    }).fail(function (jqXHR, textStatus) {
-        // alert("Request failed: " + textStatus);
-        console.log(textStatus);
-    });
-    */
-
-    $.ajax({
-        method: 'POST',
-        url: 'https://hooks.slack.com/services/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',
+        url: 'https://hooks.slack.com/services/' + slackInfo['accessKey'],
         data: 'payload=' + JSON.stringify({
-            "channel": "#service-monitoring",
+            "channel": slackInfo['channel'],
+            "username": slackInfo['username'],
             "text": text,
-            "username": "hulkong",
             "icon_emoji": ":ghost:"
         })
         // dataType: 'json'
