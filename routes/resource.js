@@ -5,12 +5,13 @@ const fs = require('fs');
 const zlib = require('zlib');
 const readLastLines = require('read-last-lines');
 const WebSocketServer = require("ws").Server;
-const wss = new WebSocketServer({ port: 3001 });
 const Slack = require('slack-node');
 const svcList = require('../info/SERVICE-LIST');
 const dbFoolInfo = require('../info/DB-FOOL-INFO');
 const slackInfo = require('../info/SLACK-INFO');
 const dbconn = require('../lib/db-connect');
+
+let ports = [3000];
 let pageNm = 'main';
 let pageIdx = -1;
 let pageStaus = '정상';
@@ -25,9 +26,20 @@ let pageStaus = '정상';
  */
 router.post('/', function (req, res, next) {
 
-  openSocket();
+  let i = 0;
+  let port = 0;
+  while(i < 10) {
+    port = parseInt('300' + Math.floor(Math.random() * 10));
 
+    if(ports.indexOf(port) < 0) break;
+  }
+
+  ports.push(port);
+  wss = new WebSocketServer({ port: port });
+
+  openSocket();
   res.json({
+    port: port,
     message: "server socket open",
     statusCode: 200
   });

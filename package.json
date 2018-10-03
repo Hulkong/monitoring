@@ -1,6 +1,6 @@
 {
-  "name": "myexpressapp",
-  "version": "0.0.0",
+  "name": "monitoring_server",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "start": "nodemon ./bin/www"

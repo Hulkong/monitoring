@@ -37,8 +37,8 @@ const commInit = () => {
  *
  *  장애 서버에 관한 리스트 효과 생성 및 장애메시지 슬랙앱으로 푸쉬
  */
-const openSocket = () => {
-    ws = new WebSocket("ws://localhost:3001");                                             // 웹소켓 전역 객체 생성
+const openSocket = (port) => {
+    ws = new WebSocket("ws://192.168.0.33:" + port);                                             // 웹소켓 전역 객체 생성
     ws.onopen = (event) => { ws.send("Client message: Hi"); };                           // 연결 수립되면 서버에 메시지를 전송
 
     // 서버와 통신
@@ -103,8 +103,8 @@ const changeStatusView = (data) => {
             setTimeout(() => {
                 let idx = data['idx'];
                 let tmpStatTxt = $('#allSvcStat tbody tr').eq(idx).find('td').eq(4).text();
-                if (tmpStatTxt === '장애')
-                    pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.');   // 슬랙앱으로 메시지 푸쉬
+                if (tmpStatTxt === '장애' && where !== 'slack')
+                    pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\nhttp://106.249.242.34:28080/slack');   // 슬랙앱으로 메시지 푸쉬
             }, 1000 * 60 * 30);
 
             return;
@@ -120,7 +120,9 @@ const changeStatusView = (data) => {
             chnageView(true, 0);   // 화면전환 멈춤
             errChangeView(true);
         }
-        // pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.');   // 슬랙앱으로 메시지 푸쉬
+      
+        if(where !== 'slack')
+            pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\nhttp://106.249.242.34:28080/slack');   // 슬랙앱으로 메시지 푸쉬
     }
 };
 
@@ -133,21 +135,28 @@ const changeStatusView = (data) => {
  *  서버웹소켓 생성 완료 메시지 받은 후 클라이언트 웹소켓 생성
  */
 const connectNodeJs = () => {
-        $.ajax({
-            method: 'POST',
-            url: window.location.href + 'resource',
-            statusCode: {
-                404: function () {alert("page not found");},
-                500: function () {alert("nodeJS server error");}
-            }
-        }).done(function (data) {   // 원격 서버와의 통신이 정상일 때
-            // console.log(data)
-            openSocket();
-        }).fail(function (jqXHR, textStatus) {   // nodeJS 서버와의 통신이 비정상일 때
-            // alert("Request failed: " + textStatus);
-            console.log(jqXHR)
-            console.log(textStatus);
-        });
+    let url = window.location.href;
+
+    if(where === 'slack') {
+        url = url.slice(0, url.lastIndexOf('/') + 1);
+    }
+
+    $.ajax({
+        method: 'POST',
+        url: url + 'resource',
+        statusCode: {
+            404: function () {alert("page not found");},
+            500: function () {alert("nodeJS server error");}
+        }
+    }).done(function (data) {   // 원격 서버와의 통신이 정상일 때
+        console.log(data)
+
+        openSocket(data['port']);
+    }).fail(function (jqXHR, textStatus) {   // nodeJS 서버와의 통신이 비정상일 때
+        // alert("Request failed: " + textStatus);
+        console.log(jqXHR)
+        console.log(textStatus);
+    });
 };
 
 /**
@@ -158,6 +167,7 @@ const connectNodeJs = () => {
  * @param username: 송신자
  */
 const pushMtoSlack = (text) => {
+    /*
     $.ajax({
         method: 'POST',
         url: 'https://hooks.slack.com/services/' + slackInfo['accessKey'],
@@ -174,6 +184,7 @@ const pushMtoSlack = (text) => {
         // alert("Request failed: " + textStatus);
         console.log(textStatus);
     });
+    */
 };
 
 /**
