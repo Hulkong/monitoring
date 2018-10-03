@@ -142,8 +142,8 @@ const openSocket = () => {
     makeDirectory('./resource/dbconn/');
     makeDirectory('./resource/physics/');
 
-    repeatExecution(ws, undefined, cleanData);
-    setInterval(() => { repeatExecution(ws, pools, cleanData)}, 10000);
+    // repeatExecution(ws, undefined, cleanData);
+    // setInterval(() => { repeatExecution(ws, pools, cleanData)}, 10000);
 
     ws.on('message', (message) => {
       console.log("Receive: %s", message);

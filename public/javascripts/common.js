@@ -5,6 +5,9 @@ const commInit = () => {
     charts = {};
     pageNm = 'main'
     pageIdx = -1;
+    errArr = [];
+    offsetArr = [];
+    inter = undefined;
 
     $('#resource canvas').each((idx, ele) => {
         let key = $(ele).attr('id');
@@ -67,14 +70,33 @@ const openSocket = (port) => {
 const changeStatusView = (data) => {
     let statTxt = $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text();
 
-    if (data['statusCode'] === 200 || data['statusCode'] === 406) {   // 원격 서버와의 통신이 정상일 때
+    // 원격 서버와의 통신이 정상일 때
+    if (data['statusCode'] === 200 || data['statusCode'] === 406) {   
 
-        if (statTxt === '정상') return;
+        if (statTxt === '정상') return;   // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
         $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text('정상');
         $('#allSvcStat tbody tr').eq(data['idx']).attr('status', '-').removeClass('blinkcss');   // 위험리스트에 깜빡이는 효과 제거
 
-    } else {   // 원격 서버 장애발생시
+        // 에러가 하나라도 발생했을 시
+        if(errArr.length > 0) {
+            // 현재 response 받은 서비스의 인덱스와 전역 관리되고 있는 에러배열의 인덱스와 비교
+            // 에러배열에 존재하면 에러배열에서 해당 서비스의 인덱스값 삭제
+            if(errArr.indexof(data['idx']) >= 0) {
+                let errIdx = errArr.indexof(data['idx']);
+                errArr.splice(errIdx, 1);
+            }
+        
+        // 에러가 하나도 없을 시 화면전환 함수 호출
+        } else {
+            chnageView(false, 0);   // 화면전환 실행
+            errChangeView(false);
+        }
+        
+    // 원격 서버 장애발생시
+    } else {   
 
+        // 이미 기존에 정상표시가 되어있으면 슬랙앱에 메시지 푸쉬 로직만 실행
+        // 화면 로직 실행 안함
         if (statTxt === '장애') {
 
             // 슬랙앱으로 메시지 보낸 후 다음 메시지는 30분후에 장애 발생했을 때 보냄
@@ -91,6 +113,14 @@ const changeStatusView = (data) => {
         $('#allSvcStat tbody tr').eq(data['idx']).find('td').eq(4).text('장애');
         $('#allSvcStat tbody tr').eq(data['idx']).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
 
+        errArr.push(data['idx']);   // 에러발생 서비스의 인덱스값 고유 관리
+        errArr.sort();
+
+        if(errArr.length === 1) {
+            chnageView(true, 0);   // 화면전환 멈춤
+            errChangeView(true);
+        }
+      
         if(where !== 'slack')
             pushMtoSlack(svcList[data['idx']]['nm'] + '(' + svcList[data['idx']]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\nhttp://106.249.242.34:28080/slack');   // 슬랙앱으로 메시지 푸쉬
     }
@@ -348,23 +378,30 @@ const makeGraph = (ele, customOption) => {
 };
 
 /**
- * @description 주기적으로 메인화면과 서브화면을 번갈아 보여주는 함수
+ * @description 화면전환하는 함수
+ * @param {*} err 에러발생 여부
+ * @param {*} idx 서비스리스트의 인덱스
  */
-const intervalView = () => {
-    let idx = 0;
-    let executeInterval = () => {
-        let interval = setInterval(() => {
-            clearInterval(interval);
-            if(idx + 1 > svcList.length) idx = 0;
+const chnageView = (err, idx) => {
 
-            $('#allSvcStat tbody tr').eq(idx).trigger('click');
-            idx++;
-            setTimeout(() => {
-                $('#back').trigger('click');
-                executeInterval();
-            }, 5000);
-        }, 5000);
-    };
 
-    executeInterval();
+    // 하나라도 에러가 있을 때 
+    if(err) {
+        if(pageNm === 'sub') $('#back').trigger('click');
+        return;
+    }
+
+    if(svcList.length === idx) idx = 0;
+
+    // 모두 정상일 때
+    setTimeout(() => {
+        // console.log('sub : ' + idx)
+        $('#allSvcStat tbody tr').eq(idx).trigger('click');
+
+        setTimeout(() => {
+            // console.log('main : ' + idx)
+            $('#back').trigger('click');
+            chnageView(false, (idx + 1));
+        }, 3000);
+    }, 3000);
 };
