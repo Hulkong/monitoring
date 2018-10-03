@@ -5,7 +5,8 @@
 const mainPageInit = () => {
     makeTbAllSvcList(); // 동적으로 테이블리스트 생성
     modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정
-    // intervalView();   // 서비스들이 정상 상태일 때 페이지 자동전환
+    setOffset();
+    // chnageView(false, 0);
 };
 
 /**
@@ -130,3 +131,34 @@ const clickSearch = (e) => {
     e.preventDefault();
     typingSearch();
 }
+
+/**
+ * @description 서비스리스트의 테이블 offset 전역으로 관리
+ * 스크롤에 사용하기 위해서
+ */
+const setOffset = () => {
+    $('#allSvcStat tbody tr').each((idx, tr) => {
+        let offset = $(tr).offset();
+        offset.top = offset.top - ($('#allSvcStat').offset()).top;
+        offsetArr.push(offset);
+    });
+};
+
+/**
+ * @description 에러발생시 리스트 자동으로 스크롤 이동하는 함수
+ * @param {*} err 에러발생 여부
+ */
+const errChangeView = (err) => {
+    if(inter !== undefined && !err) {
+        clearInterval(inter);
+    }
+
+    let idx = 0;
+    inter = setInterval(() => {
+        let offset = offsetArr[errArr[idx]]
+        // let offset = offsetArr[idx]
+        $('#allSvcStat').animate({scrollTop : offset.top}, 400);
+
+        idx = idx + 1;
+    }, 4000);
+};
