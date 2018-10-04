@@ -151,6 +151,7 @@ const setOffset = () => {
 const errChangeView = (err) => {
     if(inter !== undefined && !err) {
         clearInterval(inter);
+        return;
     }
 
     let idx = 0;
