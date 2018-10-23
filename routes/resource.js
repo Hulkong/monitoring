@@ -6,10 +6,13 @@ const zlib = require('zlib');
 const readLastLines = require('read-last-lines');
 const WebSocketServer = require("ws").Server;
 const Slack = require('slack-node');
-const svcList = require('../info/SERVICE-LIST');
+const svcList = config.info['svcList'];
+const slackInfo = config.info['slackInfo'];
 const dbFoolInfo = require('../info/DB-FOOL-INFO');
-const slackInfo = require('../info/SLACK-INFO');
-const dbconn = require('../lib/db-connect');
+const dbconn = require('../lib/database/db-connect');
+const fsCont = require('../lib/file/file-control');
+const comm = require('../lib/common/common');
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 let ports = [3000];
 let pageNm = 'main';
@@ -26,97 +29,60 @@ let pageStaus = '정상';
  */
 router.post('/', function (req, res, next) {
 
+  // 임의 포트 생성후 배열로 관리
   let i = 0;
   let port = 0;
-  while(i < 10) {
-    port = parseInt('300' + Math.floor(Math.random() * 10));
+
+  // 랜덤포트 생성
+  while(i < 1) {
+    port = parseInt('300' + Math.floor(Math.random() * 10));   // 포트는 3000번대
 
     if(ports.indexOf(port) < 0) break;
+    ports.push(port);
   }
 
-  ports.push(port);
   wss = new WebSocketServer({ port: port });
 
-  openSocket();
+  openSocket();   // 소켓 오픈
+
+  // client로의 response
   res.json({
-    port: port,
-    message: "server socket open",
-    statusCode: 200
+    port: port,   // 포트번호
+    message: "server socket open",  // 메시지
+    statusCode: 200   // 상태코드
   });
 });
 
+/**
+ * @description DB커넥션 수 가져오는 라우터
+ */
 router.get('/sub/dbConn/:idx', function (req, res, next) {
   let path = './resource/dbconn/';
   getResource(path, req.params.idx, res);   // 저장된 서비스 자원 데이터를 가져옴
 });
 
+/**
+ * @description 서비스 서버자원 가져오는 라우터
+ */
 router.get('/sub/svResource/:idx', function (req, res, next) {
   let path = './resource/physics/';
   getResource(path, req.params.idx, res);   // 저장된 서비스 자원 데이터를 가져옴
 });
 
-const openConnPool = () => {
-
-  let obj = {};
-
-  dbFoolInfo.forEach((dbconfig) => {
-    if (dbconfig['type'] === 'oracle') {
-      if(dbconfig['host'] === '115.68.55.203') {
-        let tns = '(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = ' + dbconfig['host'] + ')(PORT = ' + dbconfig['port'] + '))(CONNECT_DATA = (SERVER = DEDICATED)(SID = ' + dbconfig['database'] + ')))';
-        dbconfig.connectString = tns;
-      } else {
-        dbconfig.connectString = dbconfig['host'] + ":" + dbconfig['port'] + '/' + dbconfig['database'];
-      }
-      dbconn.createPool(dbconfig, dbconfig['type']).then((pool) => {
-        obj[dbconfig['host']] = pool;
-      })
-    } else {
-      obj[dbconfig['host']] = dbconn.createPool(dbconfig, dbconfig['type']);
-    }
-  });
-
-  return obj;
-};
-
 /**
- * @description 데이터베이스 종류에 따라 쿼리 생성
- * @param {*} type 데이터베이스 종류
- * @param {*} status 활성 / 비활성
- * @returns 쿼리
- */
-const makeSql = (type) => {
-  let sql = '';
-
-    if (type === 'oracle') {
-      sql = `SELECT A.CNT ACT_CNT, B.CNT INACT_CNT, (A.CNT + B.CNT) TOT_CONN_CNT
-                FROM (
-                          SELECT COUNT(*) CNT FROM V$SESSION WHERE USERNAME = :username AND STATUS = 'ACTIVE'
-                        ) A
-                      , (
-                          SELECT COUNT(*) CNT FROM V$SESSION WHERE USERNAME = :username AND STATUS = 'INACTIVE'
-                        ) B`;
-    } else if (type === 'maria') {
-      sql = "SELECT A.CNT ACT_CNT, B.CNT INACT_CNT, (A.CNT + B.CNT) TOT_CONN_CNT FROM ";
-      sql += "(SELECT COUNT(*) CNT FROM information_schema.PROCESSLIST WHERE DB = ? AND USER = ? AND HOST LIKE CONCAT(?, '%') AND COMMAND = 'Sleep') A ";
-      sql += ", (SELECT COUNT(*) CNT FROM information_schema.PROCESSLIST WHERE DB = ? AND USER = ? AND HOST LIKE CONCAT(?, '%') AND(COMMAND = 'Query' || COMMAND = 'Execute')) B";
-    } else if (type === 'postgres') {
-      sql = "SELECT 0 AS ACT_CNT, 0 AS INACT_CNT, SUM(NUMBACKENDS) AS TOT_CONN_CNT FROM PG_STAT_DATABASE WHERE DATNAME=$1::text"
-    }
-
-  return sql;
-};
-
-/**
- * @description
- * 서버 소켓 생성 및 클라이언트 소켓과 연결
+ * @description 서버 소켓 생성 및 클라이언트 소켓과 연결
  *
  * 연결 후 서비스 서버의 물리자원 이용률 요청 함수 호출
  */
 const openSocket = () => {
   // 연결이 수립되면 클라이언트에 메시지를 전송하고 클라이언트로부터 메시지를 송수신
-  wss.on('connection', (ws) => {
-    let pools = openConnPool();
+  wss.on('connection', (websocket) => {
+    // client로의 연결성공 메시지 송신
+    sendToClient(websocket, { message: 'hello! I am a server.', statusCode: 444 });
 
+    let pools = openConnPool();   // 커넥션풀 오픈
+
+    // 정제 데이터
     let cleanData = svcList.reduce((pre, curr) => {
       let obj = {
         nm: curr['nm'],
@@ -136,30 +102,70 @@ const openSocket = () => {
       return pre;
     }, []);
 
-    ws.send(JSON.stringify({message: 'hello! I am a server.', statusCode: 444}));
+    // 디렉토리 없을시 생성
+    fsCont.makeDirectory('./logs/');
+    fsCont.makeDirectory('./resource/dbconn/');
+    fsCont.makeDirectory('./resource/physics/');
 
-    makeDirectory('./logs/');
-    makeDirectory('./resource/dbconn/');
-    makeDirectory('./resource/physics/');
+    // 처음 서버 구동시 먼저 실행
+    repCommunication({
+      websocket: websocket,
+      cleanData: cleanData
+    });
 
-    repeatExecution(ws, undefined, cleanData);
-    setInterval(() => { repeatExecution(ws, pools, cleanData)}, 10000);
+    // 10초단위로 서비스 서버와의 통신
+    setInterval(() => {
+      repCommunication({
+        websocket: websocket,
+        pools: pools,
+        cleanData: cleanData
+      }) }, 10000);
 
-    ws.on('message', (message) => {
+    websocket.on('message', (message) => {
       console.log("Receive: %s", message);
+      if (message.split(',')[1] === '444') return;
+
       pageNm = message.split(',')[0];
-      pageIdx = message.split(',')[1];
+      pageIdx = parseInt(message.split(',')[1]);
       pageStaus = message.split(',')[2];
     });
 
-    ws.on('error', (err) => {
+    websocket.on('error', (err) => {
       console.log(err);
     })
   });
 };
 
 /**
+ * @description 커넥션풀 생성하는 함수
+ * @returns 커넥션풀 리스트 객체
+ */
+const openConnPool = () => {
+  let obj = {};
+
+  dbFoolInfo.forEach((dbconfig) => {
+    if (dbconfig['type'] === 'oracle') {   // 오라클일 경우
+      if(dbconfig['host'] === '115.68.55.203') {    // 115.68.55.203 DB는 TNS 필요
+        let tns = '(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = ' + dbconfig['host'] + ')(PORT = ' + dbconfig['port'] + '))(CONNECT_DATA = (SERVER = DEDICATED)(SID = ' + dbconfig['database'] + ')))';
+        dbconfig.connectString = tns;
+      } else {
+        dbconfig.connectString = dbconfig['host'] + ":" + dbconfig['port'] + '/' + dbconfig['database'];
+      }
+
+      // 커넥션풀 생성
+      dbconn.createPool(dbconfig, dbconfig['type']).then(pool => obj[dbconfig['host']] = pool );
+    } else {   // MariaDB or Postgresql일 경우
+      // 커넥션풀 생성
+      obj[dbconfig['host']] = dbconn.createPool(dbconfig, dbconfig['type']);
+    }
+  });
+
+  return obj;
+};
+
+/**
  * @description db커넥션 정보 가져오는 함수
+ * @param {*} pools 커넥션풀 리스트 객체
  * @param {*} data 서비스 정보
  * @returns 커넥션 개수
  */
@@ -169,7 +175,7 @@ const getDBconn = (pools, data) => {
       let type = data['type'][i];
       let database = data['database'][i];
       let user = data['dbUser'][i];
-      let sql = makeSql(type);
+      let sql = dbconn.makeSql(type);
       let parameter = [];
 
       if (type === 'oracle') {
@@ -187,7 +193,7 @@ const getDBconn = (pools, data) => {
           act_cnt: 0,
           in_act_cnt: 0,
           tot_conn_cnt: 0,
-          date: getToday()
+          date: comm.getToday()
         };
 
         if (type === 'oracle') {
@@ -204,6 +210,11 @@ const getDBconn = (pools, data) => {
   });
 };
 
+/**
+ *
+ * @param {*} data 서비스 정보
+ * @param {*} idx 서비스리스트 인덱스
+ */
 const getSvResource = (data, idx) => {
   return new Promise((resolve, reject) => {
     request(data['url'], { json: true }, (err, res, body) => {
@@ -219,10 +230,10 @@ const getSvResource = (data, idx) => {
         return;
       }
 
-      let today = getToday();   // 현재 시간 구함
+      let today = comm.getToday();   // 현재 시간 구함
       let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
 
-      makeLogFile(logTxt, today);   // 로그파일을 만듬
+      fsCont.makeLogFile(logTxt, today);   // 로그파일을 만듬
 
       resolve(res);
     });
@@ -230,67 +241,107 @@ const getSvResource = (data, idx) => {
 };
 
 /**
- * @description 서비스 서버의 물리자원 이용률 반복요청하는 함수
- * @param {*} websocket 연결된 웹소켓
- * @returns 서비스 서버의 물리자원(json)
+ * @description 서비스 서버와의 통신을 반복하는 함수
+ * @param {*} websocket 연결된 웹소켓(undefined)
+ * @param {*} pools 커넥션풀 리스트 객체([])
+ * @param {*} cleanData 정제된 데이터([])
+ *
+ * 데이터 타입: json
  */
-const repeatExecution = (websocket, pools, cleanData) => {
-  cleanData.forEach((data, idx) => {
+const repCommunication = ({
+  websocket= undefined,
+  pools = undefined,
+  cleanData = []
+} = {} ) => {
 
-    // DB에 접속하는 서비스가 있을경우 커넥션 개수 가져옴
-    if(pools !== undefined && data['dbHost'].length > 0) {
+  /**
+   * 커넥션 개수 가져오는 로직
+   */
+  // 정제된 데이터가 있을 경우 아래 로직 실행
+  if(cleanData.length > 0) {
 
-      getDBconn(pools, data)
-        .then((saveDataFormat) => {
-          let path = './resource/dbconn/';
-          saveReource(path, data['nm'] + '(' + data['usage'] + ')', saveDataFormat);   // 포맷팅이 완료된 데이터 저장
+    cleanData.forEach((data, idx) => {
+      // DB에 접속하는 서비스가 있을경우 커넥션 개수 가져옴
+      if (pools !== undefined && data['dbHost'].length > 0) {
 
-          if (pageNm === 'sub') {
-            if (pageIdx == idx && pageStaus !== '장애') {
-              return websocket.send(JSON.stringify(saveDataFormat));
+        // DB 커넥션 수 가져옴
+        getDBconn(pools, data)
+          .then((saveDataFormat) => {
+            let path = './resource/dbconn/';
+            saveReource(path, data['nm'] + '(' + data['usage'] + ')', saveDataFormat);   // 포맷팅이 완료된 데이터 저장
+
+            // sub페이지일 경우 client 소켓에 데이터 송신
+            if (pageNm === 'sub') {
+              if (pageIdx === idx && pageStaus !== '장애') {   // 뷰의 서비스와 일치하고, 장애가 아닐 경우 데이터 송신
+                return sendToClient(websocket, saveDataFormat); // 클라이언트 웹소켓으로 데이터 송신
+              }
             }
-          }
-        }).catch(errorHandling);
-    }
+          }).catch(errorHandling);   // 에러 처리
+      }
 
-    // 서비스 서버에 was가 있을 경우 sc.jsp 호출
-    if(data['url'].length > 0) {
-      // 일단 BBQ, JTI, 뉴스레터 서비스 서버는 제외
-      if ( !(data['nm'] === 'BBQ' || data['nm'] === 'JTI') ) {
-        /*
-         * 테스트 데이터
-         * 데이터 이름 : TEST
-         */
+      /**
+       * 서비스 서버 자원 및 상태값 가져오는 로직
+       */
+      // URL이 있을 경우 아래 로직 실행
+      if(data['url'].length > 0) {
+        // 일단 BBQ, 뉴스레터 서비스 서버는 제외
+        if ( data['nm'] !== 'BBQ' || data['nm'] !== '뉴스레터') {
 
-        getSvResource(data, idx)
-          .then((res) => {
-            if (data['was'].length > 0 && res['statusCode'] === 200 && data['nm'] !== '뉴스레터') {
+          if (data['was'].length > 0) {   // 서비스 서버에 was가 있을 경우 sc.jsp 호출
+            getSvResource(data, idx)
+            .then((res) => {
               let path = './resource/physics/';
               saveReource(path, data['nm'] + '(' + data['usage'] + ')', res['body']);   // 서비스 서버의 물리자원 이용 데이터 저장
-            }
-
-            if (pageNm === 'sub') {   // sub페이지 일 때
-              if (pageIdx == idx && pageStaus !== '장애') {   // 선택된 페이지의 서비스 인덱스일 때와 장애가 아닐 때
-                return websocket.send(JSON.stringify(res['body']));   // 서비스 서버의 물리자원 이용률 리턴
+              if (res['statusCode']  !== 200) {
+                  console.log('상태코드가 ' + res['statusCode'] + '입니다!');
               }
-            } else {   // main페이지 일 때
-              let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태
-              return websocket.send(JSON.stringify(sendData));
-            }
-          }).catch(({msg, err, sendData}) => {
-            errorHandling(msg, err);
-            if (pageNm !== 'sub') {
-              return websocket.send(JSON.stringify(sendData));
-            }
-          });
+
+              if (pageNm === 'sub') {    // sub페이지일 경우
+                if (pageIdx === idx && pageStaus !== '장애') {   // 뷰의 서비스와 일치하고, 장애가 아닐 경우 데이터 송신
+                  return sendToClient(websocket, res['body']);  // 클라이언트 웹소켓으로 데이터 송신
+                }
+              } else {   // main페이지일 경우
+                let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태 데이터 생성
+                return sendToClient(websocket, sendData);   // 클라이언트 웹소켓으로 데이터 송신
+              }
+            }).catch(({msg, err, sendData}) => {
+              errorHandling(msg, err);
+              if (pageNm === 'main') {   // main페이지일 경우
+                return sendToClient(websocket, sendData);   // 클라이언트 웹소켓으로 데이터 송신
+              }
+            });
+          } else {   // 배경지도 호출 URL일 경우
+            getSvResource(data, idx)
+              .then((res) => {
+                if(pageNm === 'main') {   // main페이지일 경우
+                  let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태
+                  return sendToClient(websocket, sendData);
+                }
+              }).catch(({ msg, err, sendData }) => {
+                errorHandling(msg, err);
+                if (pageNm === 'main') {   // main페이지 일 때
+                  return sendToClient(websocket, sendData);
+                }
+              });
+          }
+        }
       }
-    }
-  });
+    });
+  }
+};
+
+const sendToClient = (socket, data) => {
+  if (socket['readyState'] === 3) {
+    socket.close();
+  } else {
+    socket.send(JSON.stringify(data));
+  }
 };
 
 const errorHandling = (msg, err) => {
   console.log(msg)
-  // pushMtoSlack(msg);
+  console.log(err)
+  // comm.pushMtoSlack(msg);
   //if(err !== undefined) console.error(err.message, err.stack);
 };
 
@@ -305,36 +356,6 @@ const makeStatData = (statusCode, index, nm) => {
     statusCode: statusCode,
     nm: nm
   };
-};
-
-/**
- * @description 디렉토리가 없을 시 생성하는 함수
- * @param {*} path 저장할 디렉토리 경로
- */
-const makeDirectory = (path) => {
-
-  // 폴더가 존재하는지 확인 후 로직 실행
-  searchFolder(path).then((files) => {
-    if (files === undefined) createFolder(path);
-  });
-};
-
-/**
- * @description 로그파일을 만드는 함수
- * @param {*} logTxt 로그파일에 입력할 데이터
- * @param {*} date 파일이름을 날짜를 기본으로 생성
- */
-const makeLogFile = (logTxt, date) => {
-  let path = './logs/';
-  fs.appendFile(path + date.split(' ')[0] + '.log', logTxt + '\n'
-    , (err) => {
-
-      if (err) {
-        errorHandling('Failed to add content to the file!', err);
-        return;
-        // throw err;
-      }
-    });
 };
 
 /**
@@ -363,71 +384,24 @@ const saveReource = (path, name, data) => {
 
   let file = name + '.txt';
 
-  // 파일을 압축
-  compact(path, file).then(() => {
-    fs.appendFile(path + file, JSON.stringify(data) + ',\n'
-      , (err) => {
+  let fsInfo = fsCont.getFileInfo(path, file);
+  let size = 0;
 
+  (fsInfo === undefined) ? size : (size = comm.changeUnit(fsInfo['size'], 'gb'));
+
+  // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
+  if (size >= 1) {
+    fsCont.compact(path, file);
+  } else {
+    fs.appendFile(
+      path + file,
+      JSON.stringify(data) + ',\n',
+      (err) => {
         if (err) {
           errorHandling('Failed to add content to the file!', err);
           return;
-          // throw err;
         }
       });
-  }).catch(errorHandling);
-};
-
-/**
- * @description 현재 날짜계산 함수
- * * ex) 2018-08-03
- * @returns 현재날짜
- */
-const getToday = () => {
-  let date = new Date();
-  let dd = date.getDate();
-  let mm = date.getMonth() + 1; // January is 0!
-  let yyyy = date.getFullYear();
-  let hhmmss = date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
-
-  if(dd < 10) {
-    dd = '0' + dd;
-  }
-
-  if(mm < 10) {
-    mm = '0' + mm;
-  }
-
-  let today = [yyyy, mm, dd].join('-');
-  today = today + " " + hhmmss;
-
-  return today;
-};
-
-/**
- * @description 원하는 바이트단위로 변경해주는 함수
- * @param {*} byte 바이트
- * @param {*} unit 변경할 단위
- */
-const changeUnit = (byte, unit) => {
-
-  if (unit === 'kb') {
-    let kb = byte / (1024);
-    return Math.round(kb * 100) / 100.0;
-
-  } else if (unit === 'mb') {
-    let mb = byte / (1024 * 1024);
-    return Math.round(mb * 100) / 100.0;
-
-  } else if (unit === 'gb') {
-    let gb = byte / (1024 * 1024 * 1024);
-    return Math.round(gb * 100) / 100.0;
-
-  } else if (unit === 'tb') {
-    let tb = size / (1024 * 1024 * 1024 * 1024);
-    return Math.round(tb * 100) / 100.0;
-
-  } else {
-    console.log('단위를 입력해주세요.(kb, mb, gb, tb)');
   }
 };
 
@@ -444,118 +418,6 @@ const makeLogText = (params) => {
   let log = nm + ' ' + usage + ' ' + ip + ' ' + url;
 
   return log;
-};
-
-/**
- * @description 폴더를 생성하는 함수
- * @param {*} path 폴더를 생성할 경로
- */
-const createFolder = (path) => {
-  fs.mkdir(path, 0666, function (err) {
-    if (err) {
-      errorHandling('not create new directory!', err);
-    } else {
-      console.log('create new directory');
-    }
-  });
-};
-
-/**
- * @description 폴더가 존재하는지 찾는 함수
- * @param {*} path 찾을 폴더 경로 및 이름
- * @returns 찾은 파일들
- */
-const searchFolder = (path) => {
-  return new Promise((resolve, reject) => {
-    fs.readdir(path, function (err, files) {
-
-      if (err) {
-        console.log('not search directory');
-        resolve(files);
-        return;
-      }
-
-      console.log('search directory');
-    });
-  });
-}
-
-/**
- * @description 폴더를 삭제하는 함수
- * @param {*} path 삭제할 폴더경로
- */
-const removeFile = (path) => {
-  fs.unlink(path, function (err) {
-
-    if (err) {
-      errorHandling('Unable to remove file!', err);
-      return;
-    }
-
-    console.log("remove file");
-  });
-};
-/**
- * @description 파일을 압축하는 함수
- * @param {*} path 저장할 파일경로
- * @param {*} fileName 저장할 파일이름
- */
-const compact = (path, file) => {
-
-  return new Promise((resolve, reject) => {
-    fs.stat(path + file, function (err, stats) {
-
-      if(err) {
-        reject('Unable to get file information!', err);
-        return;
-      }
-
-      let size = changeUnit(stats['size'], 'gb');
-
-      // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
-      if (size >= 1) {
-        let fileName = file.substring(0, file.lastIndexOf(".txt"));   // 확장자 제거
-        let today = getToday();
-
-        if (fileName.length === 0) return;
-
-        fs.createReadStream(path + file)
-          .pipe(zlib.createGzip())
-          .on('data', () => process.stdout.write('compact ing...\n'))
-          .pipe(fs.createWriteStream(path + fileName + '_' + today.split(' ')[0] + '.gz'))
-          .on('finish', () => {
-            console.log('Compact Finished');
-            if (file.indexOf('gz') < 0) removeFile(path + file);   // 압축한 원본파일을 삭제(압축파일 제외)
-
-            resolve();
-          });
-      } else {
-        resolve();
-      }
-    });
-  });
-};
-
-/**
- * @description 장애 or 경고 발생시 해당 서버에 대하여 관리자에게 슬랙 앱으로 메시지 푸쉬하는 함수
- * @param token: 슬랙에서 발급받은 토큰
- * @param channel: 메시지 수신 경로(채널)
- * @param text: 메시지
- * @param username: 송신자
- */
-const pushMtoSlack = (text) => {
-
-  webhookUri = 'https://hooks.slack.com/services/' + slackInfo['accessKey'];
-
-  slack = new Slack();
-  slack.setWebhook(webhookUri);
-
-  slack.webhook({
-    channel: slackInfo['channel'],
-    username: slackInfo['username'],
-    text: text,
-    icon_emoji: ":ghost:"
-  }, (err, response) => console.log(response) );
 };
 
 module.exports = router;
