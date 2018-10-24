@@ -133,7 +133,7 @@ const updateGraphs = (chartData) => {
     $.each(chartData, (key, data) => {
         if (key !== 'label' && key !== 'date') {
 
-            if (charts[key].data.labels.length > 3) {
+            if (charts[key].data.labels.length > 15) {
                 removeGraphs(charts[key]);
             }
 
@@ -156,7 +156,7 @@ const updateGraphs = (chartData) => {
 
 // 뒤로가기 클릭 이벤트
 $('#back').click(function() {
-    viewChange();
+    if (viewTimerId === undefined) viewChange();
     $(this).hide();   // 뒤로가기 버튼 숨김
     $('#allSvcStat').show();   // 전체 서비스 상태표 페이지 보여줌
     $('#search').show();   // 검색창 보여줌
