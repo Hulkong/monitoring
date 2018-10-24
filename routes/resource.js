@@ -28,6 +28,10 @@ let pageStaus = '정상';
  *  4. 위의 두 과정은 비동기 처리!
  */
 router.post('/', function (req, res, next) {
+  // 디렉토리 없을시 생성
+  fsCont.makeDirectory('./logs/');
+  fsCont.makeDirectory('./resource/dbconn/');
+  fsCont.makeDirectory('./resource/physics/');
 
   // 임의 포트 생성후 배열로 관리
   let i = 0;
@@ -41,9 +45,24 @@ router.post('/', function (req, res, next) {
     ports.push(port);
   }
 
-  wss = new WebSocketServer({ port: port });
+  let pools = undefined;
+  let webSocket = undefined;
 
-  openSocket();   // 소켓 오픈
+  openConnPool().then((p) => pools = p);   // 커넥션풀 오픈
+  openSocket(port).then((s) => webSocket = s);   // 소켓 오픈
+
+  // 10초단위로 서비스 서버와의 통신
+  if (req.baseUrl.indexOf('slack') < 0) {
+    setInterval(() => {
+      if(webSocket !== undefined && pools !== undefined) {
+        repCommunication({
+          ws: webSocket,
+          pools: pools,
+          cleanData: cleanData()
+        })
+      }
+    }, 10000);
+  }
 
   // client로의 response
   res.json({
@@ -69,70 +88,65 @@ router.get('/sub/svResource/:idx', function (req, res, next) {
   getResource(path, req.params.idx, res);   // 저장된 서비스 자원 데이터를 가져옴
 });
 
+const cleanData = () => {
+  // 정제 데이터
+  let cleD = svcList.reduce((pre, curr) => {
+    let obj = {
+      nm: curr['nm'],
+      usage: curr['usage'],
+      ip: curr['ip'],
+      port: curr['port'],
+      url: curr['url'],
+      was: curr['was'],
+      dbHost: curr['dbHost'] === undefined ? [] : curr['dbHost'],
+      database: curr['database'] === undefined ? [] : curr['database'],
+      dbUser: curr['dbUser'] === undefined ? [] : curr['dbUser'],
+      type: curr['type'] === undefined ? [] : curr['type']
+    };
+
+    pre.push(obj);
+
+    return pre;
+  }, []);
+
+  return cleD;
+};
+
 /**
  * @description 서버 소켓 생성 및 클라이언트 소켓과 연결
  *
  * 연결 후 서비스 서버의 물리자원 이용률 요청 함수 호출
  */
-const openSocket = () => {
-  // 연결이 수립되면 클라이언트에 메시지를 전송하고 클라이언트로부터 메시지를 송수신
-  wss.on('connection', (websocket) => {
-    // client로의 연결성공 메시지 송신
-    sendToClient(websocket, { message: 'hello! I am a server.', statusCode: 444 });
+const openSocket = (port) => {
+  return new Promise((resolve, reject) => {
+    let wss = new WebSocketServer({ port: port });
 
-    let pools = openConnPool();   // 커넥션풀 오픈
+    // 연결이 수립되면 클라이언트에 메시지를 전송하고 클라이언트로부터 메시지를 송수신
+    wss.on('connection', (ws) => {
 
-    // 정제 데이터
-    let cleanData = svcList.reduce((pre, curr) => {
-      let obj = {
-        nm: curr['nm'],
-        usage: curr['usage'],
-        ip: curr['ip'],
-        port: curr['port'],
-        url: curr['url'],
-        was: curr['was'],
-        dbHost: curr['dbHost'] === undefined ? [] : curr['dbHost'],
-        database: curr['database'] === undefined ? [] : curr['database'],
-        dbUser: curr['dbUser'] === undefined ? [] : curr['dbUser'],
-        type: curr['type'] === undefined ? [] : curr['type']
-      };
+      resolve(ws);
+      // client로의 연결성공 메시지 송신
+      sendToClient(ws, { message: 'hello! I am a server.', statusCode: 444 });
 
-      pre.push(obj);
-
-      return pre;
-    }, []);
-
-    // 디렉토리 없을시 생성
-    fsCont.makeDirectory('./logs/');
-    fsCont.makeDirectory('./resource/dbconn/');
-    fsCont.makeDirectory('./resource/physics/');
-
-    // 처음 서버 구동시 먼저 실행
-    repCommunication({
-      websocket: websocket,
-      cleanData: cleanData
-    });
-
-    // 10초단위로 서비스 서버와의 통신
-    setInterval(() => {
+      // 처음 서버 구동시 먼저 실행
       repCommunication({
-        websocket: websocket,
-        pools: pools,
-        cleanData: cleanData
-      }) }, 10000);
+        ws: ws,
+        cleanData: cleanData()
+      });
 
-    websocket.on('message', (message) => {
-      console.log("Receive: %s", message);
-      if (message.split(',')[1] === '444') return;
+      ws.on('message', (message) => {
+        console.log("Receive: %s", message);
+        if (message.split(',')[1] === '444') return;
 
-      pageNm = message.split(',')[0];
-      pageIdx = parseInt(message.split(',')[1]);
-      pageStaus = message.split(',')[2];
+        pageNm = message.split(',')[0];
+        pageIdx = parseInt(message.split(',')[1]);
+        pageStaus = message.split(',')[2];
+      });
+
+      ws.on('error', (err) => {
+        console.log(err);
+      })
     });
-
-    websocket.on('error', (err) => {
-      console.log(err);
-    })
   });
 };
 
@@ -141,26 +155,26 @@ const openSocket = () => {
  * @returns 커넥션풀 리스트 객체
  */
 const openConnPool = () => {
-  let obj = {};
+  return new Promise((resolve, reject) => {
+    let obj = {};
+    dbFoolInfo.forEach((dbconfig) => {
+      if (dbconfig['type'] === 'oracle') {   // 오라클일 경우
+        if(dbconfig['host'] === '115.68.55.203') {    // 115.68.55.203 DB는 TNS 필요
+          let tns = '(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = ' + dbconfig['host'] + ')(PORT = ' + dbconfig['port'] + '))(CONNECT_DATA = (SERVER = DEDICATED)(SID = ' + dbconfig['database'] + ')))';
+          dbconfig.connectString = tns;
+        } else {
+          dbconfig.connectString = dbconfig['host'] + ":" + dbconfig['port'] + '/' + dbconfig['database'];
+        }
 
-  dbFoolInfo.forEach((dbconfig) => {
-    if (dbconfig['type'] === 'oracle') {   // 오라클일 경우
-      if(dbconfig['host'] === '115.68.55.203') {    // 115.68.55.203 DB는 TNS 필요
-        let tns = '(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = ' + dbconfig['host'] + ')(PORT = ' + dbconfig['port'] + '))(CONNECT_DATA = (SERVER = DEDICATED)(SID = ' + dbconfig['database'] + ')))';
-        dbconfig.connectString = tns;
-      } else {
-        dbconfig.connectString = dbconfig['host'] + ":" + dbconfig['port'] + '/' + dbconfig['database'];
+        // 커넥션풀 생성
+        dbconn.createPool(dbconfig, dbconfig['type']).then(pool => obj[dbconfig['host']] = pool );
+      } else {   // MariaDB or Postgresql일 경우
+        // 커넥션풀 생성
+        obj[dbconfig['host']] = dbconn.createPool(dbconfig, dbconfig['type']);
       }
-
-      // 커넥션풀 생성
-      dbconn.createPool(dbconfig, dbconfig['type']).then(pool => obj[dbconfig['host']] = pool );
-    } else {   // MariaDB or Postgresql일 경우
-      // 커넥션풀 생성
-      obj[dbconfig['host']] = dbconn.createPool(dbconfig, dbconfig['type']);
-    }
+    });
+    resolve(obj);
   });
-
-  return obj;
 };
 
 /**
@@ -230,10 +244,13 @@ const getSvResource = (data, idx) => {
         return;
       }
 
-      let today = comm.getToday();   // 현재 시간 구함
-      let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
+      // 장애일 경우만 로그로 저장
+      if (res['statusCode'] !== 200) {
+        let today = comm.getToday();   // 현재 시간 구함
+        let logTxt = today + ' ' + res['statusCode'] + ' ' + makeLogText(data);  // 로그데이터 생성
 
-      fsCont.makeLogFile(logTxt, today);   // 로그파일을 만듬
+        fsCont.makeLogFile(logTxt, today);   // 로그파일을 만듬
+      }
 
       resolve(res);
     });
@@ -242,14 +259,14 @@ const getSvResource = (data, idx) => {
 
 /**
  * @description 서비스 서버와의 통신을 반복하는 함수
- * @param {*} websocket 연결된 웹소켓(undefined)
+ * @param {*} ws 연결된 웹소켓(undefined)
  * @param {*} pools 커넥션풀 리스트 객체([])
  * @param {*} cleanData 정제된 데이터([])
  *
  * 데이터 타입: json
  */
 const repCommunication = ({
-  websocket= undefined,
+  ws= undefined,
   pools = undefined,
   cleanData = []
 } = {} ) => {
@@ -267,28 +284,32 @@ const repCommunication = ({
         // DB 커넥션 수 가져옴
         getDBconn(pools, data)
           .then((saveDataFormat) => {
+
             let path = './resource/dbconn/';
             saveReource(path, data['nm'] + '(' + data['usage'] + ')', saveDataFormat);   // 포맷팅이 완료된 데이터 저장
 
             // sub페이지일 경우 client 소켓에 데이터 송신
-            if (pageNm === 'sub') {
-              if (pageIdx === idx && pageStaus !== '장애') {   // 뷰의 서비스와 일치하고, 장애가 아닐 경우 데이터 송신
-                return sendToClient(websocket, saveDataFormat); // 클라이언트 웹소켓으로 데이터 송신
-              }
-            }
+            // 뷰의 서비스와 일치하고, 장애가 아닐 경우 데이터 송신
+            if (pageNm === 'sub' && pageIdx === idx && pageStaus !== '장애')
+                sendToClient(ws, saveDataFormat); // 클라이언트 웹소켓으로 데이터 송신
+
           }).catch(errorHandling);   // 에러 처리
       }
 
       /**
        * 서비스 서버 자원 및 상태값 가져오는 로직
        */
+
       // URL이 있을 경우 아래 로직 실행
       if(data['url'].length > 0) {
+
         // 일단 BBQ, 뉴스레터 서비스 서버는 제외
         if ( data['nm'] !== 'BBQ' || data['nm'] !== '뉴스레터') {
 
-          if (data['was'].length > 0) {   // 서비스 서버에 was가 있을 경우 sc.jsp 호출
+          // 서비스 서버에 was가 있을 경우 sc.jsp 호출
+          if (data['was'].length > 0) {
 
+            // 서버 자원 가져옴
             getSvResource(data, idx).then((res) => {
 
               let path = './resource/physics/';
@@ -298,16 +319,19 @@ const repCommunication = ({
                   // console.log('상태코드가 ' + res['statusCode'] + '입니다!');
               }
 
-              if (pageNm === 'sub') {    // sub페이지일 경우
+              // sub페이지일 경우
+              // 뷰의 서비스와 일치하고, 장애가 아닐 경우 데이터 송신
+              if (pageNm === 'sub' && pageIdx === idx && pageStaus !== '장애') {
 
-                if (pageIdx === idx && pageStaus !== '장애') {   // 뷰의 서비스와 일치하고, 장애가 아닐 경우 데이터 송신
-                  return sendToClient(websocket, res['body']);  // 클라이언트 웹소켓으로 데이터 송신
-                }
+                sendToClient(ws, res['body']);  // 클라이언트 웹소켓으로 데이터 송신
 
-              } else {   // main페이지일 경우
+              }
+
+              // main페이지일 경우
+              if (pageNm === 'main') {
 
                 let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태 데이터 생성
-                return sendToClient(websocket, sendData);   // 클라이언트 웹소켓으로 데이터 송신
+                sendToClient(ws, sendData);   // 클라이언트 웹소켓으로 데이터 송신
 
               }
 
@@ -316,28 +340,21 @@ const repCommunication = ({
               errorHandling(msg, err);
 
               if (pageNm === 'main') {   // main페이지일 경우
-                return sendToClient(websocket, sendData);   // 클라이언트 웹소켓으로 데이터 송신
+                return sendToClient(ws, sendData);   // 클라이언트 웹소켓으로 데이터 송신
               }
             });
 
           } else {   // 배경지도 호출 URL일 경우
 
-            getSvResource(data, idx).then((res) => {
-
-              if(pageNm === 'main') {   // main페이지일 경우
-
-                let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태
-                return sendToClient(websocket, sendData);
-
-              }
-            }).catch(({ msg, err, sendData }) => {
-
-              errorHandling(msg, err);
-
-              if (pageNm === 'main') {   // main페이지 일 때
-                return sendToClient(websocket, sendData);
-              }
-            });
+            if (pageNm === 'main') {   // main페이지 일 때
+              getSvResource(data, idx).then((res) => {
+                  let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태
+                  sendToClient(ws, sendData);
+              }).catch(({ msg, err, sendData }) => {
+                errorHandling(msg, err);
+                  sendToClient(ws, sendData);
+              });
+            }
           }
         }
       }
