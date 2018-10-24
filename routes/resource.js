@@ -288,41 +288,56 @@ const repCommunication = ({
         if ( data['nm'] !== 'BBQ' || data['nm'] !== '뉴스레터') {
 
           if (data['was'].length > 0) {   // 서비스 서버에 was가 있을 경우 sc.jsp 호출
-            getSvResource(data, idx)
-            .then((res) => {
+
+            getSvResource(data, idx).then((res) => {
+
               let path = './resource/physics/';
               saveReource(path, data['nm'] + '(' + data['usage'] + ')', res['body']);   // 서비스 서버의 물리자원 이용 데이터 저장
+
               if (res['statusCode']  !== 200) {
-                  console.log('상태코드가 ' + res['statusCode'] + '입니다!');
+                  // console.log('상태코드가 ' + res['statusCode'] + '입니다!');
               }
 
               if (pageNm === 'sub') {    // sub페이지일 경우
+
                 if (pageIdx === idx && pageStaus !== '장애') {   // 뷰의 서비스와 일치하고, 장애가 아닐 경우 데이터 송신
                   return sendToClient(websocket, res['body']);  // 클라이언트 웹소켓으로 데이터 송신
                 }
+
               } else {   // main페이지일 경우
+
                 let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태 데이터 생성
                 return sendToClient(websocket, sendData);   // 클라이언트 웹소켓으로 데이터 송신
+
               }
+
             }).catch(({msg, err, sendData}) => {
+
               errorHandling(msg, err);
+
               if (pageNm === 'main') {   // main페이지일 경우
                 return sendToClient(websocket, sendData);   // 클라이언트 웹소켓으로 데이터 송신
               }
             });
+
           } else {   // 배경지도 호출 URL일 경우
-            getSvResource(data, idx)
-              .then((res) => {
-                if(pageNm === 'main') {   // main페이지일 경우
-                  let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태
-                  return sendToClient(websocket, sendData);
-                }
-              }).catch(({ msg, err, sendData }) => {
-                errorHandling(msg, err);
-                if (pageNm === 'main') {   // main페이지 일 때
-                  return sendToClient(websocket, sendData);
-                }
-              });
+
+            getSvResource(data, idx).then((res) => {
+
+              if(pageNm === 'main') {   // main페이지일 경우
+
+                let sendData = makeStatData(res['statusCode'], idx, data['nm']);   // 상태
+                return sendToClient(websocket, sendData);
+
+              }
+            }).catch(({ msg, err, sendData }) => {
+
+              errorHandling(msg, err);
+
+              if (pageNm === 'main') {   // main페이지 일 때
+                return sendToClient(websocket, sendData);
+              }
+            });
           }
         }
       }

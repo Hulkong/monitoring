@@ -74,6 +74,7 @@
     <script>
         const svcList = JSON.parse('<%-JSON.stringify(svc)%>');
         const slackInfo = JSON.parse('<%-JSON.stringify(slack)%>');
+        const socketIp = JSON.parse('<%-JSON.stringify(socketIp)%>');
         const where = ('<%- where %>');
         commInit();   // 공통 라이브러리 초기화(한번만 실행)
         mainPageInit();   // 메인페이지 초기화(한번만 실행)

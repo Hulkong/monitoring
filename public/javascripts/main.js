@@ -181,7 +181,7 @@ const viewChange = () => {
             $('#back').trigger('click');
         }
 
-    }, 6000);
+    }, 7500);
 };
 
 /**
@@ -195,10 +195,9 @@ const errChangeScroll = () => {
     let idx = 0;
     errTimerId = setInterval(() => {
         let offsetArr = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] });
-
         if (offsetArr.length === idx) idx = 0;
 
-        $('#allSvcStat').animate({ scrollTop: offsetArr[idx]['top'] }, 400);
+        $('#allSvcStat').animate({ scrollTop: offsetArr[idx]['offset']['top'] }, 800);
         idx++;
-    }, 10000);
+    }, 3500);
 };

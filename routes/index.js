@@ -12,12 +12,21 @@ if (!process.env.NODE_ENV) {
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
-  res.render('index', { svc: config.info['svcList'], slack: config.info['slackInfo'], where: req.params.where});
+  res.render('index', {
+    svc: config.info['svcList'],
+    slack: config.info['slackInfo'],
+    socketIp: config.info['socketIp'],
+    where: req.params.where
+  });
 });
 
 /* GET home page. */
 router.get('/:where', function(req, res, next) {
-  res.render('index', { svc: config.info['svcList'], slack: config.info['slackInfo'], where: req.params.where});
+  res.render('index', {
+    svc: config.info['svcList'],
+    slack: config.info['slackInfo'],
+    socketIp: config.info['socketIp'],
+    where: req.params.where});
 });
 
 module.exports = router;

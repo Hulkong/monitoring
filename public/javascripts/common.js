@@ -128,7 +128,8 @@ const connectNodeJs = () => {
  *  장애 서버에 관한 리스트 효과 생성 및 장애메시지 슬랙앱으로 푸쉬
  */
 const openSocket = (port) => {
-    ws = new WebSocket("ws://192.168.0.33:" + port);                       // 웹소켓 전역 객체 생성
+    // ws = new WebSocket("ws://192.168.0.33:" + port);                       // 웹소켓 전역 객체 생성
+    ws = new WebSocket('ws://' + socketIp + ':' + port);                       // 웹소켓 전역 객체 생성
     ws.onopen = (event) => { ws.send("Hi,444"); };                           // 연결 수립되면 서버에 메시지를 전송
 
     // 서버와 통신
@@ -161,25 +162,35 @@ const changeStat = (data) => {
     let index = data['idx'];
     let statTxt = $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text();
     let today = getToday();
-
+    let errCount = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] }).length;
     // 원격 서버와의 통신이 정상일 때
     if (data['statusCode'] === 200 || data['statusCode'] === 406) {
 
+        if (errTimerId !== undefined && errCount === 0) {
+            clearInterval(errTimerId);
+            errTimerId = undefined;
+        }
+
+        if (viewTimerId === undefined && errCount === 0) viewChange();
+
         if (statTxt === '정상') return;   // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
+
         $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text('정상');
         $('#allSvcStat tbody tr').eq(index).attr('status', '-').removeClass('blinkcss');   // 위험리스트에 깜빡이는 효과 제거
 
         errArr[index]['occur'] = 'no';
 
-        if (errTimerId !== undefined) {
-            clearInterval(errTimerId);
-            errTimerId = undefined;
-        }
-
-        if (viewTimerId === undefined) viewChange();
-
     // 원격 서버와의 통신이 정상이 아닐 경우
     } else {
+
+        if (viewTimerId !== undefined) {
+            clearInterval(viewTimerId);
+            viewTimerId = undefined;
+
+            if (pageNm === 'sub') $('#back').trigger('click');
+        }
+
+        if (errTimerId === undefined) errChangeScroll();
 
         // 이미 기존에 정상표시가 되어있으면 슬랙앱에 메시지 푸쉬 로직만 실행
         // 화면 로직 실행 안함
@@ -192,10 +203,10 @@ const changeStat = (data) => {
                 let befM = errArr[index]['date'].split(' ')[1].split(':')[1];   // 직전 에러 발생한 시각(분 단위)
 
                 if ((currM - befM) >= 0 && (currM - befM) >= 30) {   // 양수 이면서 30분 초과했을 경우
-                    pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\nhttp://106.249.242.34:28080/slack');   // 슬랙앱으로 메시지 푸쉬
+                    pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port']);   // 슬랙앱으로 메시지 푸쉬
                     errArr[index]['date'] = today;
                 } else if ((currM - befM) < 0 && ((currM - befM) + 60) >= 30) {   // 음수 이면서 30분 초과했을 경우
-                    pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\nhttp://106.249.242.34:28080/slack');   // 슬랙앱으로 메시지 푸쉬
+                    pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port']);   // 슬랙앱으로 메시지 푸쉬
                     errArr[index]['date'] = today;
                 }
             }
@@ -209,18 +220,8 @@ const changeStat = (data) => {
         errArr[index]['occur'] = 'yes';
         errArr[index]['date'] = today;
 
-        if (viewTimerId !== undefined) {
-            clearInterval(viewTimerId);
-            viewTimerId = undefined;
-
-            if (pageNm === 'sub') $('#back').trigger('click');
-        }
-
-        if(errTimerId === undefined) errChangeScroll();
-
-
-        // if(where !== 'slack')
-            // pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\nhttp://106.249.242.34:28080/slack');   // 슬랙앱으로 메시지 푸쉬
+        if(where !== 'slack')
+            pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port']);   // 슬랙앱으로 메시지 푸쉬
     }
 };
 
