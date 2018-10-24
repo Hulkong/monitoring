@@ -16,6 +16,12 @@ header #title {
   color: black;
 }
 
+header #title:hover {
+  margin: 15px 0 15px 15px;
+  font-size: 1.5em;
+  color: cadetblue;
+}
+
 header #back {
   display: none;
   font-size: 1.5em;

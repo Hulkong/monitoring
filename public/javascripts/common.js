@@ -97,10 +97,6 @@ const makeGraph = (ele, customOption) => {
 const connectNodeJs = () => {
     let url = window.location.href;
 
-    if (where === 'slack') {
-        url = url.slice(0, url.lastIndexOf('/') + 1);
-    }
-
     $.ajax({
         method: 'POST',
         url: url + 'resource',
@@ -154,24 +150,54 @@ const openSocket = (port) => {
     };
 };
 
+const controlInterval = (status) => {
+    if (window.location.pathname.indexOf('slack') < 0) {
+        let errCount = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] }).length;
+
+        if(status === 'normal') {
+            if (errTimerId !== undefined && errCount === 0) {
+                clearInterval(errTimerId);
+                errTimerId = undefined;
+
+                if (viewTimerId === undefined && errCount === 0) viewChange();
+            }
+        } else {
+            if (viewTimerId !== undefined) {
+                clearInterval(viewTimerId);
+                viewTimerId = undefined;
+
+                if (pageNm === 'sub') $('#back').trigger('click');
+            }
+
+            if (errTimerId === undefined) errChangeScroll();
+        }
+    }
+};
+
+const reservMsg = (today, before, msg) => {
+
+    // 슬랙앱으로 메시지 보낸 후 다음 메시지는 30분후에 장애 발생했을 때 보냄
+    let currM = today.split(' ')[1].split(':')[1];   // 현재 시각(분 단위)
+    let befM = before.split(' ')[1].split(':')[1];   // 직전 에러 발생한 시각(분 단위)
+
+    if ((currM - befM) >= 0 && (currM - befM) >= 30) {   // 양수 이면서 30분 초과했을 경우
+        pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+    } else if ((currM - befM) < 0 && ((currM - befM) + 60) >= 30) {   // 음수 이면서 30분 초과했을 경우
+        pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+    }
+};
+
 /**
  * @description 메인페이지의 상태값 및 화면 변경하는 함수
  * @param {*} data 상태값 및 서비스 구별을 위한 인덱스
  */
 const changeStat = (data) => {
+
     let index = data['idx'];
     let statTxt = $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text();
-    let today = getToday();
-    let errCount = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] }).length;
+
     // 원격 서버와의 통신이 정상일 때
     if (data['statusCode'] === 200 || data['statusCode'] === 406) {
-
-        if (errTimerId !== undefined && errCount === 0) {
-            clearInterval(errTimerId);
-            errTimerId = undefined;
-        }
-
-        if (viewTimerId === undefined && errCount === 0) viewChange();
 
         if (statTxt === '정상') return;   // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
 
@@ -180,35 +206,22 @@ const changeStat = (data) => {
 
         errArr[index]['occur'] = 'no';
 
+        controlInterval('normal');
+
     // 원격 서버와의 통신이 정상이 아닐 경우
     } else {
 
-        if (viewTimerId !== undefined) {
-            clearInterval(viewTimerId);
-            viewTimerId = undefined;
-
-            if (pageNm === 'sub') $('#back').trigger('click');
-        }
-
-        if (errTimerId === undefined) errChangeScroll();
+        let today = getToday();
+        let msg = svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port'];
 
         // 이미 기존에 정상표시가 되어있으면 슬랙앱에 메시지 푸쉬 로직만 실행
         // 화면 로직 실행 안함
         if (statTxt === '장애') {
 
             // 슬랙 앱으로 접속하지 않았을 경우
-            if(where !== 'slack') {
-                // 슬랙앱으로 메시지 보낸 후 다음 메시지는 30분후에 장애 발생했을 때 보냄
-                let currM = today.split(' ')[1].split(':')[1];   // 현재 시각(분 단위)
-                let befM = errArr[index]['date'].split(' ')[1].split(':')[1];   // 직전 에러 발생한 시각(분 단위)
-
-                if ((currM - befM) >= 0 && (currM - befM) >= 30) {   // 양수 이면서 30분 초과했을 경우
-                    pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port']);   // 슬랙앱으로 메시지 푸쉬
-                    errArr[index]['date'] = today;
-                } else if ((currM - befM) < 0 && ((currM - befM) + 60) >= 30) {   // 음수 이면서 30분 초과했을 경우
-                    pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port']);   // 슬랙앱으로 메시지 푸쉬
-                    errArr[index]['date'] = today;
-                }
+            if (window.location.pathname.indexOf('slack') < 0) {
+                reservMsg(today, errArr[index]['date'], msg);
+                errArr[index]['date'] = today;
             }
 
             return;
@@ -220,8 +233,11 @@ const changeStat = (data) => {
         errArr[index]['occur'] = 'yes';
         errArr[index]['date'] = today;
 
-        if(where !== 'slack')
-            pushMtoSlack(svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port']);   // 슬랙앱으로 메시지 푸쉬
+        controlInterval('error');
+
+        // 슬랙 앱으로 접속하지 않았을 경우
+        if (window.location.pathname.indexOf('slack') < 0)
+            pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
     }
 };
 
@@ -256,10 +272,10 @@ const pushMtoSlack = (text) => {
  * @param {*} arr  서비스 서버 자원데이터(배열)
  * @returns 배열
  */
-const convertData = (arr) => {
+const convertData = (arr = []) => {
     let svrInfos = {};
 
-    if (arr[0]['act_cnt'] !== undefined) {
+    if (arr.length > 0 && arr[0]['act_cnt'] !== undefined) {
         svrInfos = {
             'dbconn': [],
             'date': [],

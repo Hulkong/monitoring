@@ -6,7 +6,9 @@ const mainPageInit = () => {
     makeTbAllSvcList(); // 동적으로 테이블리스트 생성
     modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정
     makeErrArr();
-    viewChange();
+
+    if (window.location.pathname.indexOf('slack') < 0)
+        viewChange();
 };
 
 /**
@@ -51,19 +53,27 @@ const makeTbAllSvcList = () => {
         }
 
         let idx = $(this).attr('idx');   // 선택된 서비스 리스트의 인덱스
-        let status = $(this).find('td').eq(4).text();
 
-        // 해당 서비스에 os가 존재할 경우
-        if (svcList[idx]['os'].length) {
-            const svcNm = $(this).find('td').eq(0).text();
+        // 해당 서비스에 모니터링 에이전트가 존재할 경우
+        if (svcList[idx]['url'].indexOf('sc.jsp') >= 0) {
+            let svcNm = $(this).find('td').eq(0).text();
+            let usage = $(this).find('td').eq(1).text();
+            let status = $(this).find('td').eq(4).text();
+            let url = svcList[idx]['url'];
+            let realUrl = /(http(s)?:\/\/|www.)([a-z0-9\w]+\.*)+[a-z0-9]{2,4}([\/a-z0-9-%#?&=\w])+(\.[a-z0-9]{2,4}(\?[\/a-z0-9-%#?&=\w]+)*)*/gi.exec(url)[0];
+
             $('#allSvcStat').hide();   //
             $('#search').hide();
             $('#svcStat').css('display', 'grid');
-            $('#title').html(svcNm + '서버 상태' + '(' + svcList[idx]['url'].slice(0, svcList[idx]['url'].lastIndexOf('/sc.jsp')) + ')');
+            // $('#title').html(svcNm + '서버 상태' + '(' + svcList[idx]['url'].slice(0, svcList[idx]['url'].lastIndexOf('/sc.jsp')) + ')');
+            $('#title').attr('href', realUrl);
+            $('#title').html(svcNm + '(' + usage + ')');
             $('#back').show();
             pageNm = 'sub';
             pageIdx = idx;
-            sendToClient(ws, pageNm + ',' + pageIdx + ',' + status);   // nodeJS 서버로 데이터 송신
+
+            if (ws !== undefined)
+                sendToClient(ws, pageNm + ',' + pageIdx + ',' + status);   // nodeJS 서버로 데이터 송신
 
             // 현재 클릭된 리스트의 데이터들을 임시 저장함
             $(this).data('idx', idx);
@@ -181,7 +191,7 @@ const viewChange = () => {
             $('#back').trigger('click');
         }
 
-    }, 7500);
+    }, 10000);
 };
 
 /**
