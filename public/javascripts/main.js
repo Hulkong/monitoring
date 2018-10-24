@@ -5,8 +5,8 @@
 const mainPageInit = () => {
     makeTbAllSvcList(); // 동적으로 테이블리스트 생성
     modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정
-    setOffset();
-    // chnageView(false, 0);
+    makeErrArr();
+    viewChange();
 };
 
 /**
@@ -37,7 +37,19 @@ const makeTbAllSvcList = () => {
     $('#allSvcStat tbody tr[status="장애"]').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
 
     // 테이블 리스트 클릭 이벤트
-    $('#allSvcStat tbody tr').click(function() {
+    $('#allSvcStat tbody tr').click(function(event) {
+        if (event['originalEvent']) {
+            if (errTimerId !== undefined) {
+                clearInterval(errTimerId);
+                errTimerId = undefined;
+            }
+
+            if (viewTimerId !== undefined) {
+                clearInterval(viewTimerId);
+                viewTimerId = undefined;
+            }
+        }
+
         let idx = $(this).attr('idx');   // 선택된 서비스 리스트의 인덱스
         let status = $(this).find('td').eq(4).text();
 
@@ -51,7 +63,7 @@ const makeTbAllSvcList = () => {
             $('#back').show();
             pageNm = 'sub';
             pageIdx = idx;
-            ws.send(pageNm + ',' + pageIdx + ',' + status);
+            sendToClient(ws, pageNm + ',' + pageIdx + ',' + status);   // nodeJS 서버로 데이터 송신
 
             // 현재 클릭된 리스트의 데이터들을 임시 저장함
             $(this).data('idx', idx);
@@ -81,8 +93,6 @@ const makeTbAllSvcList = () => {
     $('#allSvcStat tbody tr').mouseleave(function () {
         $(this).css('background-color', '#EAEAEA');
     });
-
-    // setInterval(callRemoteServer, 3000);   // 원격 서버의 sc.jsp 호출
 };
 
 /**
@@ -136,30 +146,59 @@ const clickSearch = (e) => {
  * @description 서비스리스트의 테이블 offset 전역으로 관리
  * 스크롤에 사용하기 위해서
  */
-const setOffset = () => {
+const makeErrArr = () => {
     $('#allSvcStat tbody tr').each((idx, tr) => {
         let offset = $(tr).offset();
         offset.top = offset.top - ($('#allSvcStat').offset()).top;
-        offsetArr.push(offset);
+
+        let pushData = {
+            index: idx,
+            offset: offset,
+            occur: 'no',
+            date: null
+        };
+
+        errArr.push(pushData);
     });
+};
+
+const viewChange = () => {
+
+    if (viewTimerId !== undefined) return;
+
+    let idx = 0;
+    viewTimerId = setInterval(() => {
+        if (svcList.length - 1 === idx) idx = 0;
+
+        if (pageNm === 'main') {
+            if (svcList[idx]['was'].length !== 0) {
+                $('#allSvcStat tbody tr').eq(idx++).trigger('click');
+            } else {
+                $('#allSvcStat tbody tr').eq(++idx).trigger('click');
+                idx++;
+            }
+        } else if (pageNm === 'sub') {
+            $('#back').trigger('click');
+        }
+
+    }, 6000);
 };
 
 /**
  * @description 에러발생시 리스트 자동으로 스크롤 이동하는 함수
  * @param {*} err 에러발생 여부
  */
-const errChangeView = (err) => {
-    if(inter !== undefined && !err) {
-        clearInterval(inter);
-        return;
-    }
+const errChangeScroll = () => {
+
+    if (errTimerId !== undefined) return;
 
     let idx = 0;
-    inter = setInterval(() => {
-        let offset = offsetArr[errArr[idx]]
-        // let offset = offsetArr[idx]
-        $('#allSvcStat').animate({scrollTop : offset.top}, 400);
+    errTimerId = setInterval(() => {
+        let offsetArr = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] });
 
-        idx = idx + 1;
-    }, 4000);
+        if (offsetArr.length === idx) idx = 0;
+
+        $('#allSvcStat').animate({ scrollTop: offsetArr[idx]['top'] }, 400);
+        idx++;
+    }, 10000);
 };

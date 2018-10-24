@@ -156,6 +156,7 @@ const updateGraphs = (chartData) => {
 
 // 뒤로가기 클릭 이벤트
 $('#back').click(function() {
+    viewChange();
     $(this).hide();   // 뒤로가기 버튼 숨김
     $('#allSvcStat').show();   // 전체 서비스 상태표 페이지 보여줌
     $('#search').show();   // 검색창 보여줌
@@ -164,5 +165,5 @@ $('#back').click(function() {
     pageNm = 'main';   // 소켓통신시 공통으로 이용할 플래그 값(페이지이름)
     pageIdx = -1;   // 소켓통신시 공통으로 이용할 플래그 값(서버리스트 인덱스)
     pageStatus = '정상';   // 소켓통신시 공통으로 이용할 플래그 값(서버리스트 인덱스)
-    ws.send(pageNm + ',' + pageIdx + ',' + pageStatus);   // nodeJS 서버로 데이터 송신
+    sendToClient(ws, pageNm + ',' + pageIdx + ',' + status);   // nodeJS 서버로 데이터 송신
 });
