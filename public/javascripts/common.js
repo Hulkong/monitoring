@@ -227,8 +227,10 @@ const changeStat = (data) => {
             return;
         }
 
-        $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text('장애');
-        $('#allSvcStat tbody tr').eq(index).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
+        if (errArr[index]['occur'] === 'yes') {
+            $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text('장애');
+            $('#allSvcStat tbody tr').eq(index).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
+        }
 
         errArr[index]['occur'] = 'yes';
         errArr[index]['date'] = today;
@@ -236,8 +238,10 @@ const changeStat = (data) => {
         controlInterval('error');
 
         // 슬랙 앱으로 접속하지 않았을 경우
-        if (window.location.pathname.indexOf('slack') < 0)
-            pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+        if (window.location.pathname.indexOf('slack') < 0) {
+            reservMsg(today, errArr[index]['date'], msg);
+            // pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+        }
     }
 };
 
