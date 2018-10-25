@@ -61,7 +61,7 @@ router.post('/', function (req, res, next) {
           cleanData: cleanData()
         })
       }
-    }, 10000);
+    }, 300000);
   }
 
   // client로의 response
