@@ -41,10 +41,14 @@ router.post('/', function (req, res, next) {
   while(i < 1) {
     port = parseInt('300' + Math.floor(Math.random() * 10));   // 포트는 3000번대
 
-    if(ports.indexOf(port) < 0) break;
-    ports.push(port);
+    // 웹소켓 포트가 중복되지 않을 경우
+    if(ports.indexOf(port) < 0) {
+      ports.push(port);
+      break;
+    }
   }
 
+  console.log(ports)
   let pools = undefined;
   let webSocket = undefined;
 
