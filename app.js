@@ -1,3 +1,14 @@
+// config load
+if (!process.env.NODE_ENV) {
+  config = require('./config/development');
+} else if (process.env.NODE_ENV == 'production') {
+  config = require('./config/production');
+} else if (process.env.NODE_ENV == 'development') {
+  config = require('./config/development');
+}
+
+// console.log(process.env.NODE_ENV)
+
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
@@ -5,8 +16,10 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const indexRouter = require('./routes/index');
 const resourceRouter = require('./routes/resource');
-
+const server = require('./server/server');
+const comm = require('./lib/common/common');
 const app = express();
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 // view engine setup
 // app.set('view engine', 'jade');
@@ -39,7 +52,8 @@ app.use(function(req, res, next) {
 
 // error handler
 app.use(function(err, req, res, next) {
-// set locals, only providing error in development
+
+  // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
 
@@ -47,5 +61,19 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
+
+
+server.makeDirectory();   // 필요 디렉토리 생성
+cleData = server.cleanData();
+
+// 커넥션풀 오픈
+comm.openConnPool().then((pools) => {
+  setInterval(() => {
+    server.processOfDB(pools, cleData);
+    server.processOfSRsc(cleData);
+  }, 3000);
+});
+
 
 module.exports = app;
