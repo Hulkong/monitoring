@@ -4,7 +4,6 @@
 const commInit = () => {
     charts = {};
     pageNm = 'main'
-    pageIdx = -1;
     errArr = [];
     errTimerId = undefined;
     viewTimerId = undefined;
@@ -126,27 +125,57 @@ const connectNodeJs = () => {
 const openSocket = (port) => {
     // ws = new WebSocket("ws://192.168.0.33:" + port);                       // 웹소켓 전역 객체 생성
     ws = new WebSocket('ws://' + socketIp + ':' + port);                       // 웹소켓 전역 객체 생성
-    ws.onopen = (event) => { ws.send("Hi,444"); };                           // 연결 수립되면 서버에 메시지를 전송
+    ws = $.extend(ws, { port: port });
+
+    // 서버와 웹소켓 생성
+    ws.onopen = (event) => {
+        let hiMsg = { message: 'hello! I am a client.', statusCode: 444 };
+        ws.send(JSON.stringify(hiMsg));
+    };
 
     // 서버와 통신
     ws.onmessage = (event) => {
         let data = JSON.parse(event['data']);
+
         if (data['statusCode'] === 444 || data['status'] === 500) return;   // 처음 nodejs 서버와 소켓연결일 때
         // console.log("Server message: ", data)
 
-        if(pageNm === 'sub') {
-            let cleanData = convertData([data]);
-            updateGraphs(cleanData);
+        if (data.length === 0) return;
+
+        console.log(data)
+        // 메인페이지의 상태값 및 화면 변경
+        if (pageNm === 'main') {
+            changeStat(data);
         } else {
-            changeStat(data);   // 메인페이지의 상태값 및 화면 변경
+            let cleanData = convertData(data);   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
+
+            if(data.length > 1) drawGraphs(cleanData);   // 라인차트 그리기
+            else updateGraphs(cleanData);
         }
     };
 
-    // error event handler
+    // 에러 핸들링
     ws.onerror = (event) => {
         console.log("Server error message: ", event);
-        // pushMtoSlack('NodeJS 서버 소켓이 에러로 끊어졌습니다!');   // 슬랙앱으로 메시지 푸쉬
         ws.close();
+    };
+
+    // 웹소켓 종료
+    ws.onclose = (event) => {
+        // console.log(event)
+        // console.log(ws)
+        let port = ws.port;
+        ws = undefined;
+        $.ajax({
+            method: 'DELETE',
+            url: window.location.href + 'resource/port/' + port
+            // dataType: 'json'
+        }).done(function (data) {
+            console.log(data);
+        }).fail(function (jqXHR, textStatus) {
+            // alert("Request failed: " + textStatus);
+            console.log(textStatus);
+        });
     };
 };
 
@@ -154,7 +183,7 @@ const controlInterval = (status) => {
     if (window.location.pathname.indexOf('slack') < 0) {
         let errCount = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] }).length;
 
-        if(status === 'normal') {
+        if (status === 'normal') {
             if (errTimerId !== undefined && errCount === 0) {
                 clearInterval(errTimerId);
                 errTimerId = undefined;
@@ -174,100 +203,38 @@ const controlInterval = (status) => {
     }
 };
 
-const reservMsg = (today, before, msg) => {
-
-    // 슬랙앱으로 메시지 보낸 후 다음 메시지는 30분후에 장애 발생했을 때 보냄
-    let currM = today.split(' ')[1].split(':')[1];   // 현재 시각(분 단위)
-    let befM = before.split(' ')[1].split(':')[1];   // 직전 에러 발생한 시각(분 단위)
-
-    if ((currM - befM) >= 0 && (currM - befM) >= 30) {   // 양수 이면서 30분 초과했을 경우
-        pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
-    } else if ((currM - befM) < 0 && ((currM - befM) + 60) >= 30) {   // 음수 이면서 30분 초과했을 경우
-        pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
-    }
-};
-
 /**
  * @description 메인페이지의 상태값 및 화면 변경하는 함수
  * @param {*} data 상태값 및 서비스 구별을 위한 인덱스
  */
 const changeStat = (data) => {
 
-    let index = data['idx'];
-    let statTxt = $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text();
+    data.forEach((d, i) => {
+        let statTxt = $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text();
 
-    // 원격 서버와의 통신이 정상일 때
-    if (data['statusCode'] === 200 || data['statusCode'] === 406) {
+        // 원격 서버와의 통신이 정상일 때
+        if (d['code'] === 200 || d['code'] === 406) {
 
-        if (statTxt === '정상') return;   // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
+            if (statTxt === '정상') return;   // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
 
-        $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text('정상');
-        $('#allSvcStat tbody tr').eq(index).attr('status', '-').removeClass('blinkcss');   // 위험리스트에 깜빡이는 효과 제거
+            $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text('정상');
+            $('#allSvcStat tbody tr').eq(i).attr('status', '-').removeClass('blinkcss');   // 위험리스트에 깜빡이는 효과 제거
 
-        errArr[index]['occur'] = 'no';
+            // controlInterval('normal');
 
-        controlInterval('normal');
+        // 원격 서버와의 통신이 정상이 아닐 경우
+        } else {
 
-    // 원격 서버와의 통신이 정상이 아닐 경우
-    } else {
+            let today = getToday();
 
-        let today = getToday();
-        let msg = svcList[index]['nm'] + '(' + svcList[index]['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + svcList[index]['ip'] + ':' + svcList[index]['port'];
+            // 화면 로직 실행 안함
+            if (statTxt === '장애') return;
 
-        // 이미 기존에 정상표시가 되어있으면 슬랙앱에 메시지 푸쉬 로직만 실행
-        // 화면 로직 실행 안함
-        if (statTxt === '장애') {
+            $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text('장애');
+            $('#allSvcStat tbody tr').eq(i).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
 
-            // 슬랙 앱으로 접속하지 않았을 경우
-            if (window.location.pathname.indexOf('slack') < 0) {
-                reservMsg(today, errArr[index]['date'], msg);
-                errArr[index]['date'] = today;
-            }
-
-            return;
+            // controlInterval('error');
         }
-
-        if (errArr[index]['occur'] === 'yes') {
-            $('#allSvcStat tbody tr').eq(index).find('td').eq(4).text('장애');
-            $('#allSvcStat tbody tr').eq(index).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
-        }
-
-        errArr[index]['occur'] = 'yes';
-        errArr[index]['date'] = today;
-
-        controlInterval('error');
-
-        // 슬랙 앱으로 접속하지 않았을 경우
-        if (window.location.pathname.indexOf('slack') < 0) {
-            reservMsg(today, errArr[index]['date'], msg);
-            // pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
-        }
-    }
-};
-
-/**
- * @description 장애 or 경고 발생시 해당 서버에 대하여 관리자에게 슬랙 앱으로 메시지 푸쉬하는 함수
- * @param token: 슬랙에서 발급받은 토큰
- * @param channel: 메시지 수신 경로(채널)
- * @param text: 메시지
- * @param username: 송신자
- */
-const pushMtoSlack = (text) => {
-    $.ajax({
-        method: 'POST',
-        url: 'https://hooks.slack.com/services/' + slackInfo['accessKey'],
-        data: 'payload=' + JSON.stringify({
-            "channel": slackInfo['channel'],
-            "username": slackInfo['username'],
-            "text": text,
-            "icon_emoji": ":ghost:"
-        })
-        // dataType: 'json'
-    }).done(function (data) {
-        console.log(data);
-    }).fail(function (jqXHR, textStatus) {
-        // alert("Request failed: " + textStatus);
-        console.log(textStatus);
     });
 };
 
@@ -313,13 +280,13 @@ const convertData = (arr = []) => {
             let date = data['date'];
 
             // cpu 이용률 계산
-            if (parseFloat(data['getSystemCpuLoad']) !== 0 && parseFloat(data['getSystemCpuLoad']) >= parseFloat(data['getProcessCpuLoad']) ) {
-                cpuUse = ( parseFloat(data['getSystemCpuLoad']) - parseFloat(data['getProcessCpuLoad']) ) / parseFloat(data['getSystemCpuLoad']) * 100;
+            if (parseFloat(data['getSystemCpuLoad']) !== 0 && parseFloat(data['getSystemCpuLoad']) >= parseFloat(data['getProcessCpuLoad'])) {
+                cpuUse = (parseFloat(data['getSystemCpuLoad']) - parseFloat(data['getProcessCpuLoad'])) / parseFloat(data['getSystemCpuLoad']) * 100;
             }
 
             // memory 이용률 계산
-            if ( parseInt(data['getTotalPhysicalMemorySize']) !== 0 && parseInt(data['getTotalPhysicalMemorySize']) >= parseInt(data['getFreePhysicalMemorySize']) ) {
-                memUse = ( parseInt(data['getTotalPhysicalMemorySize']) - parseInt(data['getFreePhysicalMemorySize']) ) / parseInt(data['getTotalPhysicalMemorySize']) * 100;
+            if (parseInt(data['getTotalPhysicalMemorySize']) !== 0 && parseInt(data['getTotalPhysicalMemorySize']) >= parseInt(data['getFreePhysicalMemorySize'])) {
+                memUse = (parseInt(data['getTotalPhysicalMemorySize']) - parseInt(data['getFreePhysicalMemorySize'])) / parseInt(data['getTotalPhysicalMemorySize']) * 100;
             }
 
             // 하드디스크 이용율 계산
@@ -332,8 +299,8 @@ const convertData = (arr = []) => {
             }
 
             // let dbconnCnt =
-            if ( parseInt(data['totMemJVM']) !== 0 && parseInt(data['totMemJVM']) >= parseInt(data['freeMemJVM']) ) {
-                jvmmemUse = ( parseInt(data['totMemJVM']) - parseInt(data['freeMemJVM']) ) / parseInt(data['totMemJVM']) * 100;
+            if (parseInt(data['totMemJVM']) !== 0 && parseInt(data['totMemJVM']) >= parseInt(data['freeMemJVM'])) {
+                jvmmemUse = (parseInt(data['totMemJVM']) - parseInt(data['freeMemJVM'])) / parseInt(data['totMemJVM']) * 100;
             }
 
             svrInfos['cpu'].push(Math.round(cpuUse * 100) / 100.0);
@@ -386,7 +353,7 @@ const compDate = (before, today, sep) => {
     let befTime = before.split(' ')[1];
     let currTime = current.split(' ')[1];
 
-    if(sep === undefined) {
+    if (sep === undefined) {
         return alert('구분자를 넣어주세요!');
     }
 
@@ -411,6 +378,6 @@ const sendToClient = (socket, data) => {
     if (socket['readyState'] === 3) {
         socket.close();
     } else {
-        socket.send(data);
+        socket.send(JSON.stringify(data));
     }
 };

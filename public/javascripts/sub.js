@@ -8,54 +8,19 @@ const subPageInit = (data) => {
     let was = $(data).data('was');   // 선택된 서비스의 was 존재여부(true or false)
     let status = $(data).data('status');
 
+    pageNm = 'sub';
+
+    if (ws !== undefined) {
+        let data = {
+            pageNm: pageNm,
+            pageIdx: idx
+        };
+
+        sendToClient(ws, data);   // nodeJS 서버로 데이터 송신
+    }
+
     makeTbSvcList(idx);   // 동적으로 테이블리스트 생성
     initGraphs();   // 라인차트 초기화
-
-    // if (status === '장애' || status === '-') return;
-    if (was) getSvResource(idx);   // was가 존재할 경우 서비스 서버의 물리자원 데이터 가져옴
-    if (dbconn) getDBConn(idx);  // db커넥션이 존재할 경우 커넥션 개수 가져옴
-};
-
-/**
- * @description nodejs 서버에 원격서비스 자원 데이터 요청(json)
- * * 파일에서 몇 라인 읽어옴
- * @param {*} idx 선택된 서비스 리스트의 인덱스
- */
-const getSvResource = (idx) => {
-    $.ajax({
-        method: 'GET',
-        url: window.location.href + 'resource/sub/svResource/' + idx,
-        statusCode: {/* 404: function () {alert("page not found");}*/ }
-    }).done(function (data) {
-        // console.log(JSON.parse(data));
-        let cleanData = convertData(JSON.parse(data));   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
-        drawGraphs(cleanData);   // 라인차트 그리기
-    }).fail(function (jqXHR, textStatus) {
-        // alert("Request failed: " + textStatus);
-        console.log(textStatus);
-    });
-};
-
-/**
- * @description nodejs 서버에 DB커넥션 개수 데이터 요청(json)
- * * 파일에서 몇 라인 읽어옴
- * @param {*} idx 선택된 서비스 리스트의 인덱스
- */
-const getDBConn = (idx) => {
-    $.ajax({
-        method: 'GET',
-        url: window.location.href + 'resource/sub/dbConn/' + idx,
-        statusCode: {/* 404: function () {alert("page not found");}*/ }
-    }).done(function (data) {
-        // console.log(JSON.parse(data));
-        if(data.length === 0) return;
-
-        let cleanData = convertData(JSON.parse(data));   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
-        drawGraphs(cleanData);   // 라인차트 그리기
-    }).fail(function (jqXHR, textStatus) {
-        // alert("Request failed: " + textStatus);
-        console.log(textStatus);
-    });
 };
 
 /**
@@ -156,14 +121,16 @@ const updateGraphs = (chartData) => {
 
 // 뒤로가기 클릭 이벤트
 $('#back').click(function() {
-    if (viewTimerId === undefined && window.location.pathname.indexOf('slack') < 0) viewChange();
+    // if (viewTimerId === undefined && window.location.pathname.indexOf('slack') < 0) viewChange();
     $(this).hide();   // 뒤로가기 버튼 숨김
     $('#allSvcStat').show();   // 전체 서비스 상태표 페이지 보여줌
     $('#search').show();   // 검색창 보여줌
     $('#svcStat').hide();   // 서비스 상태 페이지 숨김
     $('#title').html('전체 서비스 상태표');   // 상단 타이틀 변경
     pageNm = 'main';   // 소켓통신시 공통으로 이용할 플래그 값(페이지이름)
-    pageIdx = -1;   // 소켓통신시 공통으로 이용할 플래그 값(서버리스트 인덱스)
-    pageStatus = '정상';   // 소켓통신시 공통으로 이용할 플래그 값(서버리스트 인덱스)
-    sendToClient(ws, pageNm + ',' + pageIdx + ',' + status);   // nodeJS 서버로 데이터 송신
+
+    let data = {
+        pageNm: pageNm
+    };
+    sendToClient(ws, data);   // nodeJS 서버로 데이터 송신
 });
