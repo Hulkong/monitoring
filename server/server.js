@@ -10,22 +10,21 @@ module.exports = {
     makeDirectory: function() {
         fsCont.makeDirectory('./logs/');
         fsCont.makeDirectory('./resource/');
-        fsCont.makeDirectory('./resource/status/');
         fsCont.makeDirectory('./resource/dbconn/');
         fsCont.makeDirectory('./resource/physics/');
     },
 
-    processOfDB: function (pools, data) {
+    processOfDB: function (pools = [], data) {
         let that = this;
         /**
          * 커넥션 개수 가져오는 로직
          */
-        // 정제된 데이터가 있을 경우 아래 로직 실행
-        if (data.length > 0) {
+        // 커넥션 풀이 존재하거나, 정제된 데이터가 존재할 경우 아래 로직 실행
+        if (pools.length > 0 && data.length > 0) {
             data.forEach((d, idx) => {
 
                 // DB에 접속하는 서비스가 있을경우 커넥션 개수 가져옴
-                if (pools !== undefined && d['dbHost'].length > 0) {
+                if (d['dbHost'].length > 0) {
 
                     // DB 커넥션 수 가져옴
                     comm.getDBconn(pools, d).then((saveDataFormat) => {
@@ -60,41 +59,46 @@ module.exports = {
 
                         // 서버 자원 가져옴
                         comm.getSvResource(d, idx).then((res) => {
-
-                            let today = comm.getToday();   // 현재 시간 구함
-                            let path = '';
-                            let fileNm = '';
-
-                            data[idx]['code'] = res['statusCode'];
-                            data[idx]['date'] = today;
-
-                            // 장애일 경우만 로그로 저장
-                            if (res['statusCode'] !== 200) {
-                                let msg = d['nm'] + '(' + d['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + d['ip'] + ':' + d['port'];
-                                path = './logs/';
-                                fileNm = today.split(' ')[0] + '.log';
-
-                                that.saveReource(path, fileNm, today + ' ' + res['statusCode'] + ' ' + that.makeLogText(d));
-
-                                if (d['errTime'].length === 0) {
-                                    // pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
-                                    data[idx]['errTime'] = comm.getToday();
-                                } else {
-                                    that.reservMsgAfter30(today, d['errTime'], msg);
-                                }
-                            } else {
-                                // 서비스 서버의 물리자원 이용 데이터 저장
-                                path = './resource/physics/';
-                                fileNm = d['nm'] + '(' + d['usage'] + ').txt';
-                                that.saveReource(path, fileNm, res['body']);
-                            }
-
+                            that.processAfterReq(d, idx, res);
                         }).catch(({ msg, err, sendData }) => {
+                            that.processAfterReq(d, idx, {statusCode: 555});
                             comm.errorHandling(msg, err);
                         });
                     }
                 }
             });
+        }
+    },
+
+    processAfterReq: function(data, index, res) {
+        let that = this;
+        let today = comm.getToday();   // 현재 시간 구함
+        let path = '';
+        let fileNm = '';
+
+        cleData[index]['code'] = res['statusCode'];
+        cleData[index]['date'] = today;
+
+        // 장애일 경우만 로그로 저장
+        if (res['statusCode'] !== 200) {
+            let msg = data['nm'] + '(' + data['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + data['ip'] + ':' + data['port'];
+            let errTime = cleData[index]['errTime'];
+            path = './logs/';
+            fileNm = today.split(' ')[0] + '.log';
+
+            that.saveReource(path, fileNm, today + ' ' + res['statusCode'] + ' ' + that.makeLogText(data));
+
+            if (errTime.length === 0) {
+                // comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+                cleData[index]['errTime'] = comm.getToday();
+            } else {
+                that.reservMsgAfter30(today, errTime, msg);
+            }
+        } else {
+            // 서비스 서버의 물리자원 이용 데이터 저장
+            path = './resource/physics/';
+            fileNm = data['nm'] + '(' + data['usage'] + ').txt';
+            that.saveReource(path, fileNm, res['body']);
         }
     },
 
@@ -105,9 +109,9 @@ module.exports = {
         let befH = before.split(' ')[1].split(':')[0];   // 직전 에러 발생한 시각(시 단위)
 
         if ((currH - befH) >= 0 && (currH - befH) >= 1) {   // 양수 이면서 1시간 초과했을 경우
-            pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+            comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
         } else if ((currH - befH) < 0 && ((currH - befH) + 24) >= 1) {   // 음수 이면서 1시간 초과했을 경우
-            pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+            comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
         }
 
         /*

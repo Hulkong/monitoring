@@ -8,9 +8,6 @@ const slackInfo = config.info['slackInfo'];
 const comm = require('../lib/common/common');
 
 let ports = [3000];
-let socketArr = [];
-let mainTimerId = undefined;
-let subTimerId = undefined;
 
 /**
  * @description 해당 url에 대한 서버 물리자원 이용률 가져옴
@@ -28,9 +25,8 @@ router.post('/', function (req, res, next) {
 
   // 랜덤포트 생성
   while(i < 1) {
-    port = parseInt('300' + Math.floor(Math.random() * 10));   // 포트는 3000번대
+    port = parseInt('30' + Math.floor(Math.random() * 100));   // 포트는 3000번대
 
-    port = 3001;
     // 웹소켓 포트가 중복되지 않을 경우
     if(ports.indexOf(port) < 0) {
       ports.push(port);
@@ -38,16 +34,8 @@ router.post('/', function (req, res, next) {
     }
   }
 
-  if (socketArr.length == 0) {
-    // 소켓 오픈
-    openSocket(port).then((s) => {
-
-      socketArr.push(s);
-
-      startMainInterval();
-
-    });
-  }
+  // 소켓 오픈
+  openSocket(port).then(() => {});
 
   // client로의 response
   res.json({
@@ -56,39 +44,6 @@ router.post('/', function (req, res, next) {
     statusCode: 200   // 상태코드
   });
 });
-
-const startMainInterval = () => {
-
-  mainTimerId = setInterval(() => {
-    socketArr.forEach((s) => {
-      comm.sendToClient(s, JSON.stringify(cleData));
-    });
-  }, 3000);
-};
-
-const startSubInterval = (pageIndex) => {
-
-  let startTimer = false;
-  let readCnt = 50;
-  subTimerId = setInterval(() => {
-
-    if (startTimer) {
-      readCnt = 1;
-    } else {
-      startTimer = true;
-    }
-    // 저장된 서비스 자원 데이터를 가져옴
-    ['./resource/dbconn/', './resource/physics/'].forEach((path, idx) => {
-      getResource(path, pageIndex, readCnt).then((d) => {
-        let data = '[' + d.substring(0, d.lastIndexOf(",")) + ']';
-        socketArr.forEach((s, idx) => {
-          comm.sendToClient(s, data);
-        });
-      });
-    });
-
-  }, 5000);
-};
 
 /**
  * @description 포트 제거하는 라우터
@@ -100,6 +55,37 @@ router.delete('/port/:num', function (req, res) {
   ports.splice(idx, 1);
 });
 
+const startMainInterval = (s) => {
+  return setInterval(() => {
+    comm.sendToClient(s, JSON.stringify(cleData));
+  }, 3000);
+};
+
+const startSubInterval = (s, pageIndex) => {
+
+  let startTimer = false;
+  let readCnt = 50;
+  return setInterval(() => {
+
+    if (startTimer) {
+      readCnt = 1;
+    } else {
+      startTimer = true;
+    }
+    // 저장된 서비스 자원 데이터를 가져옴
+    ['./resource/dbconn/', './resource/physics/'].forEach((path, idx) => {
+      getResource(path, pageIndex, readCnt)
+        .then((d) => {
+        let data = '[' + d.substring(0, d.lastIndexOf(",")) + ']';
+        comm.sendToClient(s, data);
+      })
+        .catch(() => {
+        comm.sendToClient(s, '[]');
+      });
+    });
+
+  }, 5000);
+};
 
 /**
  * @description 서버 소켓 생성 및 클라이언트 소켓과 연결
@@ -109,11 +95,12 @@ router.delete('/port/:num', function (req, res) {
 const openSocket = (port) => {
   return new Promise((resolve, reject) => {
     let wss = new WebSocketServer({ port: port });
+    wss.mainTimerId = undefined;
+    wss.subTimerId = undefined;
 
     // 연결이 수립되면 클라이언트에 메시지를 전송하고 클라이언트로부터 메시지를 송수신
     wss.on('connection', (ws) => {
 
-      resolve(ws);
       let hiMsg = { message: 'hello! I am a server.', statusCode: 444 };
 
       // client로의 연결성공 메시지 송신
@@ -122,13 +109,14 @@ const openSocket = (port) => {
       ws.on('message', (message) => {
         let msg = JSON.parse(message);
 
-        if (msg['statusCode'] === 444 ) return;
+        console.log(msg)
         if (msg['pageNm'] === 'main') {
-          clearInterval(subTimerId);
-          startMainInterval();
+          clearInterval(wss.subTimerId);
+          wss.mainTimerId = startMainInterval(ws);
+
         } else {
-          clearInterval(mainTimerId);
-          startSubInterval(msg['pageIdx']);
+          clearInterval(wss.mainTimerId);
+          wss.subTimerId = startSubInterval(ws, msg['pageIdx']);
         }
       });
 
@@ -137,8 +125,11 @@ const openSocket = (port) => {
       });
 
       ws.on('close', (code, reason) => {
+        clearInterval(wss.mainTimerId);
+        clearInterval(wss.subTimerId);
+        wss.close();
         console.log(code)
-        console.log(reason)
+        // console.log(reason)
       });
     });
   });
@@ -150,12 +141,14 @@ const openSocket = (port) => {
  * @param {*} res response
  */
 const getResource = (path, idx, readCnt = 0) => {
+  console.log(path + cleData[idx].nm )
   return new Promise((resolve, reject) => {
     readLastLines.read(path + cleData[idx].nm + '(' + cleData[idx].usage + ')' + '.txt', readCnt)
       .then((lines) => {
         resolve(lines);
       }).catch((err) => {
-        errorHandling('Could not read the contents of the file!', err);
+        reject();
+        comm.errorHandling('Could not read the contents of the file!', err);
       });
   });
 };
