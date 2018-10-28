@@ -3,6 +3,7 @@
  * @param {*} svcList 서비스 리스트
  */
 const mainPageInit = () => {
+    // history.replaceState({ data: 'replace' }, '', '/resource/main');
     makeTbAllSvcList(); // 동적으로 테이블리스트 생성
     modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정
     makeErrArr();
@@ -101,7 +102,12 @@ const makeTbAllSvcList = () => {
  */
 const modScreenSize = () => {
     const hdHeight = $('header').height();
-    $('section').height(screen.availHeight - hdHeight -150);
+    const secHeight = $('section').height();
+    const applyHeight = screen.availHeight - hdHeight - 150;
+
+    if(secHeight < applyHeight) return;
+    
+    $('section').height(screen.availHeight - hdHeight - 150);
 };
 
 /**

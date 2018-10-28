@@ -3,6 +3,7 @@
  * @param {*} data 선택된 서비스리스트의 인덱스, db커넥션 존재여부, was존재여부
  */
 const subPageInit = (data) => {
+    // history.replaceState({ data: 'replace' }, '', '/resource/sub');
     let idx = $(data).data('idx');   // 선택된 서비스리스트의 인덱스
     let dbconn = $(data).data('dbconn');   // 선택된 서비스의 db커넥션 존재여부(true or false)
     let was = $(data).data('was');   // 선택된 서비스의 was 존재여부(true or false)

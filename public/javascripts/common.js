@@ -123,13 +123,18 @@ const connectNodeJs = () => {
  *  장애 서버에 관한 리스트 효과 생성 및 장애메시지 슬랙앱으로 푸쉬
  */
 const openSocket = (port) => {
-    // ws = new WebSocket("ws://192.168.0.33:" + port);                       // 웹소켓 전역 객체 생성
+    // let ws = new WebSocket("ws://192.168.0.33:" + port);                       // 웹소켓 전역 객체 생성
     ws = new WebSocket('ws://' + socketIp + ':' + port);                       // 웹소켓 전역 객체 생성
     ws = $.extend(ws, { port: port });
 
     // 서버와 웹소켓 생성
     ws.onopen = (event) => {
-        let hiMsg = { message: 'hello! I am a client.', statusCode: 444 };
+        let hiMsg = { 
+            message: 'hello! I am a client.', 
+            statusCode: 444, 
+            pageNm: 'main',
+            pageIdx: -1
+        };
         ws.send(JSON.stringify(hiMsg));
     };
 
@@ -177,6 +182,8 @@ const openSocket = (port) => {
             console.log(textStatus);
         });
     };
+
+    return ws;
 };
 
 const controlInterval = (status) => {
