@@ -148,10 +148,10 @@ const openSocket = (port) => {
 
         if (data.length === 0) return;
 
-        console.log(data)
+        // console.log(data)
         // 메인페이지의 상태값 및 화면 변경
         if (pageNm === 'main') {
-            changeStat(data);
+            if(data[0]['code'] !== undefined) changeStat(data);
         } else {
             let cleanData = convertData(data);   // nodejs 서버에서 읽어온 파일을 json파싱 및 데이터 정제
 

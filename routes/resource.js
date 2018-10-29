@@ -58,7 +58,7 @@ router.delete('/port/:num', function (req, res) {
 const startMainInterval = (s) => {
   return setInterval(() => {
     comm.sendToClient(s, JSON.stringify(cleData));
-  }, 60000);
+  }, 5000);
 };
 
 const startSubInterval = (s, pageIndex) => {
@@ -84,7 +84,7 @@ const startSubInterval = (s, pageIndex) => {
       });
     });
 
-  }, 10000);
+  }, 5000);
 };
 
 /**
