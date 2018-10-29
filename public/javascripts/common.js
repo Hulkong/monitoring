@@ -187,6 +187,19 @@ const openSocket = (port) => {
     return ws;
 };
 
+/**
+ * @description 스크롤바 생성을 위한 높이값 조정
+ */
+const modScreenSize = (id) => {
+    const hdHeight = $('header').height();
+    const secHeight = $('#' + id).height();
+    const applyHeight = screen.availHeight - hdHeight - 400;
+
+    if (secHeight < applyHeight) return;
+
+    $('section').height(screen.availHeight - hdHeight - 130);
+};
+
 const controlInterval = (status) => {
     let errCount = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] }).length;
 

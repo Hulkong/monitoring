@@ -22,6 +22,7 @@ const subPageInit = (data) => {
 
     makeTbSvcList(idx);   // 동적으로 테이블리스트 생성
     initGraphs();   // 라인차트 초기화
+    modScreenSize('svcStat');
 };
 
 /**
@@ -95,7 +96,6 @@ const removeGraphs = (chart) => {
  * @param {*} chartData 차트에 사용될 배열 데이터
  */
 const updateGraphs = (chartData) => {
-
     $.each(chartData, (key, data) => {
         if (key !== 'label' && key !== 'date') {
 

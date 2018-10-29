@@ -5,7 +5,7 @@
 const mainPageInit = () => {
     // history.replaceState({ data: 'replace' }, '', '/resource/main');
     makeTbAllSvcList(); // 동적으로 테이블리스트 생성
-    modScreenSize();   // 모니터 해상도에 따라 테이블 높이 조정
+    modScreenSize('allSvcStat');   // 모니터 해상도에 따라 테이블 높이 조정
     makeErrArr();
 };
 
@@ -100,19 +100,6 @@ const makeTbAllSvcList = () => {
 };
 
 /**
- * @description 스크롤바 생성을 위한 높이값 조정
- */
-const modScreenSize = () => {
-    const hdHeight = $('header').height();
-    const secHeight = $('section').height();
-    const applyHeight = screen.availHeight - hdHeight - 150;
-
-    if(secHeight < applyHeight) return;
-
-    $('section').height(screen.availHeight - hdHeight - 150);
-};
-
-/**
  * @description 검색키워드 입력 함수
  */
 const typingSearch = () => {
@@ -123,7 +110,7 @@ const typingSearch = () => {
     // 검색이 하나도 없을 경우
     if (data.length === 0) {
         $('#allSvcStat tbody tr').show();
-        modScreenSize();
+        modScreenSize('allSvcStat');
         return;
     }
 
