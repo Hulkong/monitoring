@@ -122,7 +122,6 @@ const updateGraphs = (chartData) => {
 
 // 뒤로가기 클릭 이벤트
 $('#back').click(function() {
-    // if (viewTimerId === undefined && window.location.pathname.indexOf('slack') < 0) viewChange();
     $(this).hide();   // 뒤로가기 버튼 숨김
     $('#allSvcStat').show();   // 전체 서비스 상태표 페이지 보여줌
     $('#search').show();   // 검색창 보여줌
@@ -133,5 +132,6 @@ $('#back').click(function() {
     let data = {
         pageNm: pageNm
     };
+
     sendToClient(ws, data);   // nodeJS 서버로 데이터 송신
 });

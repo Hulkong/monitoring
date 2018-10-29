@@ -104,7 +104,7 @@ const connectNodeJs = () => {
             500: function () { alert("nodeJS server error"); }
         }
     }).done(function (data) {   // 원격 서버와의 통신이 정상일 때
-        console.log(data)
+        // console.log(data)
 
         openSocket(data['port']);
     }).fail(function (jqXHR, textStatus) {   // nodeJS 서버와의 통신이 비정상일 때
@@ -129,9 +129,9 @@ const openSocket = (port) => {
 
     // 서버와 웹소켓 생성
     ws.onopen = (event) => {
-        let hiMsg = { 
-            message: 'hello! I am a client.', 
-            statusCode: 444, 
+        let hiMsg = {
+            message: 'hello! I am a client.',
+            statusCode: 444,
             pageNm: 'main',
             pageIdx: -1
         };
@@ -142,8 +142,9 @@ const openSocket = (port) => {
     ws.onmessage = (event) => {
         let data = JSON.parse(event['data']);
 
-        if (data['statusCode'] === 444 || data['status'] === 500) return;   // 처음 nodejs 서버와 소켓연결일 때
         // console.log("Server message: ", data)
+
+        if (data['statusCode'] === 444 || data['status'] === 500) return;   // 처음 nodejs 서버와 소켓연결일 때
 
         if (data.length === 0) return;
 
@@ -187,26 +188,24 @@ const openSocket = (port) => {
 };
 
 const controlInterval = (status) => {
-    if (window.location.pathname.indexOf('slack') < 0) {
-        let errCount = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] }).length;
+    let errCount = errArr.filter((d) => { if (d['occur'] === 'yes') return d['offset'] }).length;
 
-        if (status === 'normal') {
-            if (errTimerId !== undefined && errCount === 0) {
-                clearInterval(errTimerId);
-                errTimerId = undefined;
-
-                if (viewTimerId === undefined && errCount === 0) viewChange();
-            }
-        } else {
-            if (viewTimerId !== undefined) {
-                clearInterval(viewTimerId);
-                viewTimerId = undefined;
-
-                if (pageNm === 'sub') $('#back').trigger('click');
-            }
-
-            if (errTimerId === undefined) errChangeScroll();
+    if (status === 'normal' && errCount === 0) {
+        if (errTimerId !== undefined) {
+            clearInterval(errTimerId);
+            errTimerId = undefined;
         }
+
+        if (viewTimerId === undefined) viewChange();
+    } else if(status === 'error') {
+        if (viewTimerId !== undefined) {
+            clearInterval(viewTimerId);
+            viewTimerId = undefined;
+
+            if (pageNm === 'sub') $('#back').trigger('click');
+        }
+
+        if (errTimerId === undefined) errChangeScroll();
     }
 };
 
@@ -215,34 +214,37 @@ const controlInterval = (status) => {
  * @param {*} data 상태값 및 서비스 구별을 위한 인덱스
  */
 const changeStat = (data) => {
+    let errOccur = false;
 
     data.forEach((d, i) => {
         let statTxt = $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text();
 
         // 원격 서버와의 통신이 정상일 때
         if (d['code'] === 200 || d['code'] === 406) {
+            errArr[i]['occur'] = 'no';
 
-            if (statTxt === '정상') return;   // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
-
-            $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text('정상');
-            $('#allSvcStat tbody tr').eq(i).attr('status', '-').removeClass('blinkcss');   // 위험리스트에 깜빡이는 효과 제거
-
-            // controlInterval('normal');
+            // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
+            if (statTxt !== '정상') {
+                $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text('정상');
+                $('#allSvcStat tbody tr').eq(i).attr('status', '-').removeClass('blinkcss');   // 위험리스트에 깜빡이는 효과 제거
+            }
 
         // 원격 서버와의 통신이 정상이 아닐 경우
         } else {
 
-            let today = getToday();
+            errArr[i]['occur'] = 'yes';
+            errOccur = true;
 
             // 화면 로직 실행 안함
-            if (statTxt === '장애') return;
-
-            $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text('장애');
-            $('#allSvcStat tbody tr').eq(i).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
-
-            // controlInterval('error');
+            if (statTxt !== '장애') {
+                $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text('장애');
+                $('#allSvcStat tbody tr').eq(i).attr('status', '장애').addClass('blinkcss');   // 위험리스트에 깜빡이는 효과 생성
+            }
         }
     });
+
+    if(errOccur) controlInterval('error');
+    else controlInterval('normal');
 };
 
 /**
