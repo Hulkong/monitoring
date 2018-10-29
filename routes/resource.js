@@ -27,6 +27,8 @@ router.post('/', function (req, res, next) {
   while(i < 1) {
     port = parseInt('30' + Math.floor(Math.random() * 100));   // 포트는 3000번대
 
+    if(port.length < 2) port = parseInt(port + '0');
+
     // 웹소켓 포트가 중복되지 않을 경우
     if(ports.indexOf(port) < 0) {
       ports.push(port);
