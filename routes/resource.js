@@ -64,6 +64,7 @@ router.delete('/port/:num', function (req, res) {
 });
 
 const startMainInterval = (s) => {
+  comm.sendToClient(s, JSON.stringify(cleData));
   return setInterval(() => {
     comm.sendToClient(s, JSON.stringify(cleData));
   }, 5000);
@@ -71,28 +72,26 @@ const startMainInterval = (s) => {
 
 const startSubInterval = (s, pageIndex) => {
 
-  let startTimer = false;
-  let readCnt = 20;
+  processSub(s, pageIndex, 20);
   return setInterval(() => {
 
-    if (startTimer) {
-      readCnt = 1;
-    } else {
-      startTimer = true;
-    }
-    // 저장된 서비스 자원 데이터를 가져옴
-    ['./resource/dbconn/', './resource/physics/'].forEach((path, idx) => {
-      getResource(path, pageIndex, readCnt)
-        .then((d) => {
+    processSub(s, pageIndex, 1);
+
+  }, 3000);
+};
+
+const processSub = (s, pageIndex, readCnt) => {
+  // 저장된 서비스 자원 데이터를 가져옴
+  ['./resource/dbconn/', './resource/physics/'].forEach((path, idx) => {
+    getResource(path, pageIndex, readCnt)
+      .then((d) => {
         let data = '[' + d.substring(0, d.lastIndexOf(",")) + ']';
         comm.sendToClient(s, data);
       })
-        .catch(() => {
+      .catch(() => {
         comm.sendToClient(s, '[]');
       });
-    });
-
-  }, 2500);
+  });
 };
 
 /**

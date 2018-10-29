@@ -32,8 +32,7 @@ header #back {
 
 section {
   margin: 30px 0px 0px 0px;
-  overflow-y: auto;
-  width: 97%;
+  width: 98%;
 }
 
 .table {
@@ -51,6 +50,10 @@ table, th, td {
 tbody tr {
     background-color: #EAEAEA;
     color: #000000;
+}
+
+section#allSvcStat {
+  overflow-y: auto;
 }
 
 section#svcStat {
@@ -75,10 +78,12 @@ section #info table {
 }
 
 section #resource {
+  overflow-y: auto;
   grid-column-start: 3;
   grid-column-end: 5;
   grid-row-start: 1;
-  grid-row-end: 4;
+  grid-row-end: 5;
+  margin-bottom: 10px;
 }
 
 /* for MS계열 브라우저 */
