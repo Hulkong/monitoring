@@ -84,7 +84,7 @@ const startSubInterval = (s, pageIndex) => {
       });
     });
 
-  }, 5000);
+  }, 2500);
 };
 
 /**
