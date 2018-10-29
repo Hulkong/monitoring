@@ -25,9 +25,15 @@ router.post('/', function (req, res, next) {
 
   // 랜덤포트 생성
   while(i < 1) {
-    port = parseInt('30' + Math.floor(Math.random() * 100));   // 포트는 3000번대
+    let random = '3' + Math.floor(Math.random() * 100);   // 포트는 3000번대
 
-    if(port.length < 2) port = parseInt(port + '0');
+    if (random.length >= 3 && random.length < 4) {
+      port = parseInt(random + '0');
+    } else if (random.length >= 2 && random.length < 3) {
+      port = parseInt(random + '00');
+    } else {
+      port = random;
+    }
 
     // 웹소켓 포트가 중복되지 않을 경우
     if(ports.indexOf(port) < 0) {
