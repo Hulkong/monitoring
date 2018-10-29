@@ -174,7 +174,7 @@ const viewChange = () => {
 
     let idx = 0;
     viewTimerId = setInterval(() => {
-        if (svcList.length - 1 === idx) idx = 0;
+        if (svcList.length  === idx) idx = 0;
 
         if (pageNm === 'main') {
             if (svcList[idx]['was'].length !== 0) {
