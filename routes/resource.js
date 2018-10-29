@@ -58,13 +58,13 @@ router.delete('/port/:num', function (req, res) {
 const startMainInterval = (s) => {
   return setInterval(() => {
     comm.sendToClient(s, JSON.stringify(cleData));
-  }, 3000);
+  }, 60000);
 };
 
 const startSubInterval = (s, pageIndex) => {
 
   let startTimer = false;
-  let readCnt = 50;
+  let readCnt = 20;
   return setInterval(() => {
 
     if (startTimer) {
@@ -84,7 +84,7 @@ const startSubInterval = (s, pageIndex) => {
       });
     });
 
-  }, 5000);
+  }, 10000);
 };
 
 /**
@@ -109,13 +109,15 @@ const openSocket = (port) => {
       ws.on('message', (message) => {
         let msg = JSON.parse(message);
 
-        console.log(msg)
+        // console.log(msg)
         if (msg['pageNm'] === 'main') {
           clearInterval(wss.subTimerId);
+          wss.subTimerId = undefined;
           wss.mainTimerId = startMainInterval(ws);
 
         } else {
           clearInterval(wss.mainTimerId);
+          wss.mainTimerId = undefined;
           wss.subTimerId = startSubInterval(ws, msg['pageIdx']);
         }
       });
@@ -141,14 +143,13 @@ const openSocket = (port) => {
  * @param {*} res response
  */
 const getResource = (path, idx, readCnt = 0) => {
-  console.log(path + cleData[idx].nm )
   return new Promise((resolve, reject) => {
     readLastLines.read(path + cleData[idx].nm + '(' + cleData[idx].usage + ')' + '.txt', readCnt)
       .then((lines) => {
         resolve(lines);
       }).catch((err) => {
         reject();
-        comm.errorHandling('Could not read the contents of the file!', err);
+        comm.errorHandling('Could not read the contents of ' + path + cleData[idx].nm, err);
       });
   });
 };

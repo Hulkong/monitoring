@@ -89,7 +89,6 @@ module.exports = {
             that.saveReource(path, fileNm, today + ' ' + res['statusCode'] + ' ' + that.makeLogText(data));
 
             if (errTime.length === 0) {
-                // comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
                 cleData[index]['errTime'] = comm.getToday();
             } else {
                 that.reservMsgAfter30(today, errTime, msg);
