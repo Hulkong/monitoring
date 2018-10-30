@@ -58,7 +58,11 @@ const makeGraph = (ele, customOption) => {
             }],
             yAxes: [{
                 stacked: true,
-                display: true
+                display: true,
+                ticks: {
+                    suggestedMin: 0,
+                    suggestedMax: 100
+                }
             }]
         },
         legend: {
@@ -276,7 +280,7 @@ const convertData = (arr = []) => {
         };
 
         arr.forEach((d) => {
-            svrInfos['dbconn'].push(d['act_cnt']);
+            svrInfos['dbconn'].push((parseFloat(d['act_cnt']) / parseFloat(d['max_conn_cnt'])).toFixed(2) * 100);
             svrInfos['date'].push(d['date']);
             svrInfos['label'].push('');
         });

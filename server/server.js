@@ -16,19 +16,20 @@ module.exports = {
 
     processOfDB: function (pools = [], data) {
         let that = this;
+
         /**
          * 커넥션 개수 가져오는 로직
          */
         // 커넥션 풀이 존재하거나, 정제된 데이터가 존재할 경우 아래 로직 실행
-        if (pools.length > 0 && data.length > 0) {
+        if (pools !== undefined && data.length > 0) {
             data.forEach((d, idx) => {
 
                 // DB에 접속하는 서비스가 있을경우 커넥션 개수 가져옴
                 if (d['dbHost'].length > 0) {
 
+
                     // DB 커넥션 수 가져옴
                     comm.getDBconn(pools, d).then((saveDataFormat) => {
-
                         let path = './resource/dbconn/';
                         let fileNm = d['nm'] + '(' + d['usage'] + ').txt';
                         that.saveReource(path, fileNm, saveDataFormat);   // 포맷팅이 완료된 데이터 저장

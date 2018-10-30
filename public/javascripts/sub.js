@@ -22,7 +22,6 @@ const subPageInit = (data) => {
 
     makeTbSvcList(idx);   // 동적으로 테이블리스트 생성
     initGraphs();   // 라인차트 초기화
-    modScreenSize('svcStat');
 };
 
 /**
@@ -72,6 +71,9 @@ const drawGraphs = (chartData) => {
                 if (dataset.data[dataset.data.length - 1] > 90) {
                     dataset['backgroundColor'] = 'rgba(255, 0, 0, 0.3)';
                     dataset['borderColor'] = 'rgba(255, 0, 0, 0.3)';
+                } else {
+                    dataset['backgroundColor'] = 'rgba(32, 162, 219, 0.3)';
+                    dataset['borderColor'] = 'rgba(32, 162, 219, 0.3)';
                 }
             });
 
