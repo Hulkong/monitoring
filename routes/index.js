@@ -6,16 +6,8 @@ router.get('/', function (req, res, next) {
   res.render('index', {
     svc: config.info['svcList'],
     slack: config.info['slackInfo'],
-    socketIp: config.info['socketIp']
-  });
-});
-
-/* GET home page. */
-router.get('/:where', function(req, res, next) {
-  res.render('index', {
-    svc: config.info['svcList'],
-    slack: config.info['slackInfo'],
-    socketIp: config.info['socketIp']
+    socketIp: config.info['socketIp'],
+    httpStatus: config.info['httpStatus']
   });
 });
 

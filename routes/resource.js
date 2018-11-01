@@ -2,9 +2,7 @@
 const router = require('express').Router();
 const readLastLines = require('read-last-lines');
 const WebSocketServer = require("ws").Server;
-const Slack = require('slack-node');
 const svcList = config.info['svcList'];
-const slackInfo = config.info['slackInfo'];
 const comm = require('../lib/common/common');
 
 let ports = [3000];
@@ -17,7 +15,7 @@ let ports = [3000];
  *  3. 서버 자원 이용률 데이터를 클라이언트로 응답함
  *  4. 위의 두 과정은 비동기 처리!
  */
-router.post('/', function (req, res, next) {
+router.put('/conn', function (req, res, next) {
 
   // 임의 포트 생성후 배열로 관리
   let i = 0;
@@ -43,7 +41,7 @@ router.post('/', function (req, res, next) {
   }
 
   // 소켓 오픈
-  openSocket(port).then(() => {});
+  openSocket(port);
 
   // client로의 response
   res.json({
@@ -108,7 +106,7 @@ const openSocket = (port) => {
     // 연결이 수립되면 클라이언트에 메시지를 전송하고 클라이언트로부터 메시지를 송수신
     wss.on('connection', (ws) => {
 
-      let hiMsg = { message: 'hello! I am a server.', statusCode: 444 };
+      let hiMsg = { message: 'hello! I am a server.', statusCode: 222 };
 
       // client로의 연결성공 메시지 송신
       ws.send(JSON.stringify(hiMsg));

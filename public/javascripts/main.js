@@ -65,7 +65,6 @@ const makeTbAllSvcList = () => {
         $('#allSvcStat').hide();   //
         $('#search').hide();
         $('#svcStat').css('display', 'grid');
-        // $('#title').html(svcNm + '서버 상태' + '(' + svcList[idx]['url'].slice(0, svcList[idx]['url'].lastIndexOf('/sc.jsp')) + ')');
         $('#title').attr('href', realUrl);
         $('#title').html(svcNm + '(' + usage + ')');
         $('#back').show();
