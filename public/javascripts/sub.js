@@ -82,17 +82,6 @@ const drawGraphs = (chartData) => {
     });
 };
 
-const removeGraphs = (chart) => {
-    chart.data.labels.splice(0, 1);
-    chart.data.date.splice(0, 1);
-
-    chart.data.datasets.forEach((dataset) => {
-        dataset.data.splice(0, 1);
-    });
-
-    chart.update();   // 차트 업데이트
-};
-
 /**
  * @description 차트 데이터 업데이트 함수
  * @param {*} chartData 차트에 사용될 배열 데이터
@@ -115,11 +104,30 @@ const updateGraphs = (chartData) => {
             // 차트에서 보여질 기존 실데이터에 추가
             charts[key].data.datasets.forEach((dataset) => {
                 dataset.data.push(chartData[key][0]);
+
+                if (dataset.data[dataset.data.length - 1] > 90) {
+                    dataset['backgroundColor'] = 'rgba(255, 0, 0, 0.3)';
+                    dataset['borderColor'] = 'rgba(255, 0, 0, 0.3)';
+                } else {
+                    dataset['backgroundColor'] = 'rgba(32, 162, 219, 0.3)';
+                    dataset['borderColor'] = 'rgba(32, 162, 219, 0.3)';
+                }
             });
 
             charts[key].update();   // 차트 업데이트
         }
     });
+};
+
+const removeGraphs = (chart) => {
+    chart.data.labels.splice(0, 1);
+    chart.data.date.splice(0, 1);
+
+    chart.data.datasets.forEach((dataset) => {
+        dataset.data.splice(0, 1);
+    });
+
+    chart.update();   // 차트 업데이트
 };
 
 // 뒤로가기 클릭 이벤트

@@ -14,7 +14,7 @@ module.exports = {
         fsCont.makeDirectory('./resource/physics/');
     },
 
-    processOfDB: function (pools = [], data) {
+    processOfDB: function (pools = [], data = []) {
         let that = this;
 
         /**
@@ -43,7 +43,7 @@ module.exports = {
     /**
      * @description 서비스 서버 자원 및 상태값 가져오는 로직
      */
-    processOfSRsc: function (data) {
+    processOfSRsc: function (data = []) {
         let that = this;
 
         // 정제된 데이터가 있을 경우 아래 로직 실행
@@ -60,9 +60,9 @@ module.exports = {
 
                         // 서버 자원 가져옴
                         comm.getSvResource(d, idx).then((res) => {
-                            that.processAfterReq(d, idx, res);
+                            that.processAfterSReq(d, idx, res);
                         }).catch(({ msg, err, sendData }) => {
-                            that.processAfterReq(d, idx, {statusCode: 555});
+                            that.processAfterSReq(d, idx, {statusCode: 555});
                             comm.errorHandling(msg, err);
                         });
                     }
@@ -71,7 +71,7 @@ module.exports = {
         }
     },
 
-    processAfterReq: function(data, index, res) {
+    processAfterSReq: function(data = [], index = 0, res) {
         let that = this;
         let today = comm.getToday();   // 현재 시간 구함
         let path = '';
@@ -92,7 +92,9 @@ module.exports = {
             if (errTime.length === 0) {
                 cleData[index]['errTime'] = comm.getToday();
             } else {
-                that.reservMsgAfter30(today, errTime, msg);
+                if(that.reservMsgAfter30(today, errTime, msg)) {
+                    cleData[index]['errTime'] = today;
+                }
             }
         } else {
             // 서비스 서버의 물리자원 이용 데이터 저장
@@ -103,17 +105,20 @@ module.exports = {
     },
 
     reservMsgAfter30: function(today, before, msg) {
-        // 슬랙앱으로 메시지 보낸 후 다음 메시지는 1시간 후에 장애 발생했을 때 보냄
 
+        // 슬랙앱으로 메시지 보낸 후 다음 메시지는 1시간 후에 장애 발생했을 때 보냄
         let currH = today.split(' ')[1].split(':')[0];   // 현재 시각(시 단위)
         let befH = before.split(' ')[1].split(':')[0];   // 직전 에러 발생한 시각(시 단위)
 
         if ((currH - befH) >= 0 && (currH - befH) >= 1) {   // 양수 이면서 1시간 초과했을 경우
             comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+            return true;
         } else if ((currH - befH) < 0 && ((currH - befH) + 24) >= 1) {   // 음수 이면서 1시간 초과했을 경우
             comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+            return true;
         }
 
+        return false;
         /*
         let currM = today.split(' ')[1].split(':')[1];   // 현재 시각(분 단위)
         let befM = before.split(' ')[1].split(':')[1];   // 직전 에러 발생한 시각(분 단위)
@@ -133,25 +138,27 @@ module.exports = {
      */
     saveReource: function(path, file, data) {
 
-        let fsInfo = fsCont.getFileInfo(path, file);
-        let size = 0;
+        fsCont.getFileInfo(path, file).then((info) => {
+            let fsInfo = info;
+            let size = 0;
 
-        (fsInfo === undefined) ? size : (size = comm.changeUnit(fsInfo['size'], 'gb'));
+            (fsInfo === undefined) ? size : (size = comm.changeUnit(fsInfo['size'], 'gb'));
 
-        // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
-        if (size >= 1) {
-            fsCont.compact(path, file);
-        } else {
-            fs.appendFile(
-                path + file,
-                JSON.stringify(data) + ',\n',
-                (err) => {
-                    if (err) {
-                        comm.errorHandling('Failed to add content to the file!', err);
-                        return;
-                    }
-                });
-        }
+            // 파일사이즈가 1GB이상일 때 파일압축 후 기존파일 제거
+            if (size >= 1) {
+                fsCont.compact(path, file);
+            } else {
+                fs.appendFile(
+                    path + file,
+                    JSON.stringify(data) + ',\n',
+                    (err) => {
+                        if (err) {
+                            comm.errorHandling('Failed to add content to the file!', err);
+                            return;
+                        }
+                    });
+            }
+        });
     },
 
     /**
