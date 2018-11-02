@@ -237,12 +237,12 @@ const changeStat = (data) => {
         let statTxt = httpStatus[d['code']];
 
         // 원격 서버와의 통신이 정상일 때
-        if (d['code'] === 200) {
+        if (d['code'] === 200 || d['code'] === 406) {
             errArr[i]['occur'] = 'no';
 
             // 이미 기존에 정상표시가 되어있으면 아래 코드 실행 안함
             if (stat !== 'normal') {
-                $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text('정상');
+                $('#allSvcStat tbody tr').eq(i).find('td').eq(4).text(statTxt);
                 $('#allSvcStat tbody tr').eq(i).attr('status', 'normal').removeClass('blinkcss');   // 위험리스트에 깜빡이는 효과 제거
             }
 
