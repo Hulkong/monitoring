@@ -90,7 +90,7 @@ comm.openConnPool().then((pools) => {
   setInterval(() => {
     server.processOfDB(pools, cleData);
     server.processOfSRsc(cleData);
-  }, 5000);
+  }, 300000);
 });
 
 module.exports = app;
