@@ -93,5 +93,4 @@ comm.openConnPool().then((pools) => {
   }, 300000);
 });
 
-
 module.exports = app;

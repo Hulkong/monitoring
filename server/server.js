@@ -53,19 +53,15 @@ module.exports = {
 
                 // URL이 있을 경우 아래 로직 실행
                 // 일단 BBQ, 뉴스레터 서비스 서버는 제외
-                if (d['url'].length > 0 && d['nm'] !== 'BBQ' || d['nm'] !== '뉴스레터') {
+                if (d['url'].length > 0) {
 
-                    // 서비스 서버에 was가 있을 경우 sc.jsp 호출
-                    if (d['was'].length > 0) {
-
-                        // 서버 자원 가져옴
-                        comm.getSvResource(d, idx).then((res) => {
-                            that.processAfterSReq(d, idx, res);
-                        }).catch(({ msg, err, sendData }) => {
-                            that.processAfterSReq(d, idx, {statusCode: 555});
-                            comm.errorHandling(msg, err);
-                        });
-                    }
+                    // 서버 자원 가져옴
+                    comm.getSvResource(d, idx).then((res) => {
+                        that.processAfterSReq(d, idx, res);
+                    }).catch(({ msg, err, sendData }) => {
+                        that.processAfterSReq(d, idx, {statusCode: 555});
+                        comm.errorHandling(msg, err);
+                    });
                 }
             });
         }
@@ -97,10 +93,12 @@ module.exports = {
                 }
             }
         } else {
-            // 서비스 서버의 물리자원 이용 데이터 저장
-            path = './resource/physics/';
-            fileNm = data['nm'] + '(' + data['usage'] + ').txt';
-            that.saveReource(path, fileNm, res['body']);
+            if (data['was'].length > 0 && data['nm'] !== '뉴스레터') {
+                // 서비스 서버의 물리자원 이용 데이터 저장
+                path = './resource/physics/';
+                fileNm = data['nm'] + '(' + data['usage'] + ').txt';
+                that.saveReource(path, fileNm, res['body']);
+            }
         }
     },
 
@@ -109,13 +107,19 @@ module.exports = {
         // 슬랙앱으로 메시지 보낸 후 다음 메시지는 1시간 후에 장애 발생했을 때 보냄
         let currH = today.split(' ')[1].split(':')[0];   // 현재 시각(시 단위)
         let befH = before.split(' ')[1].split(':')[0];   // 직전 에러 발생한 시각(시 단위)
+        let currM = today.split(' ')[1].split(':')[1];   // 현재 시각(시 단위)
+        let befM = before.split(' ')[1].split(':')[1];   // 직전 에러 발생한 시각(시 단위)
 
         if ((currH - befH) >= 0 && (currH - befH) >= 1) {   // 양수 이면서 1시간 초과했을 경우
-            comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
-            return true;
+            if (currM - befM === 0) {
+                comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+                return true;
+            }
         } else if ((currH - befH) < 0 && ((currH - befH) + 24) >= 1) {   // 음수 이면서 1시간 초과했을 경우
-            comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
-            return true;
+            if (currM - befM === 0) {
+                comm.pushMtoSlack(msg);   // 슬랙앱으로 메시지 푸쉬
+                return true;
+            }
         }
 
         return false;
