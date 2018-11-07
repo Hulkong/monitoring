@@ -77,7 +77,7 @@ module.exports = {
         cleData[index]['date'] = today;
 
         // 장애일 경우만 로그로 저장
-        if (res['statusCode'] === 200 || res['statusCode'] === 406) {
+        if (res['statusCode'] === 200) {
             if (data['was'].length > 0 && data['nm'] !== '뉴스레터') {
                 // 서비스 서버의 물리자원 이용 데이터 저장
                 path = './resource/physics/';
@@ -91,6 +91,8 @@ module.exports = {
             fileNm = today.split(' ')[0] + '.log';
 
             that.saveReource(path, fileNm, today + ' ' + res['statusCode'] + ' ' + that.makeLogText(data));
+
+            if (res['statusCode'] === 406) return;
 
             if (errTime.length === 0) {
                 cleData[index]['errTime'] = comm.getToday();
