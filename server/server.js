@@ -53,7 +53,7 @@ module.exports = {
 
                 // URL이 있을 경우 아래 로직 실행
                 // 일단 BBQ, 뉴스레터 서비스 서버는 제외
-                if (d['url'].length > 0 && d['nm'] !== 'BBQ' || d['nm'] !== '뉴스레터') {
+                if (d['url'].length > 0) {
 
                     // 서버 자원 가져옴
                     comm.getSvResource(d, idx).then((res) => {
@@ -93,7 +93,7 @@ module.exports = {
                 }
             }
         } else {
-            if (data['was'].length > 0) {
+            if (data['was'].length > 0 && data['nm'] !== '뉴스레터') {
                 // 서비스 서버의 물리자원 이용 데이터 저장
                 path = './resource/physics/';
                 fileNm = data['nm'] + '(' + data['usage'] + ').txt';
