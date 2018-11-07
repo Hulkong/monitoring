@@ -77,7 +77,14 @@ module.exports = {
         cleData[index]['date'] = today;
 
         // 장애일 경우만 로그로 저장
-        if (res['statusCode'] !== 200) {
+        if (res['statusCode'] === 200 || res['statusCode'] === 406) {
+            if (data['was'].length > 0 && data['nm'] !== '뉴스레터') {
+                // 서비스 서버의 물리자원 이용 데이터 저장
+                path = './resource/physics/';
+                fileNm = data['nm'] + '(' + data['usage'] + ').txt';
+                that.saveReource(path, fileNm, res['body']);
+            }
+        } else {
             let msg = data['nm'] + '(' + data['usage'] + ') 서버에 장애가 발생하였습니다.' + '\n' + data['ip'] + ':' + data['port'];
             let errTime = cleData[index]['errTime'];
             path = './logs/';
@@ -88,16 +95,9 @@ module.exports = {
             if (errTime.length === 0) {
                 cleData[index]['errTime'] = comm.getToday();
             } else {
-                if(that.reservMsgAfter30(today, errTime, msg)) {
+                if (that.reservMsgAfter30(today, errTime, msg)) {
                     cleData[index]['errTime'] = today;
                 }
-            }
-        } else {
-            if (data['was'].length > 0 && data['nm'] !== '뉴스레터') {
-                // 서비스 서버의 물리자원 이용 데이터 저장
-                path = './resource/physics/';
-                fileNm = data['nm'] + '(' + data['usage'] + ').txt';
-                that.saveReource(path, fileNm, res['body']);
             }
         }
     },
