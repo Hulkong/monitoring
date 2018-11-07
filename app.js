@@ -86,6 +86,9 @@ cleData = server.cleanData();
 
 // 커넥션풀 오픈
 comm.openConnPool().then((pools) => {
+  server.processOfDB(pools, cleData);
+  server.processOfSRsc(cleData);
+
   // 300000
   setInterval(() => {
     server.processOfDB(pools, cleData);
