@@ -321,7 +321,7 @@ const convertData = (arr = []) => {
                     totSpace += parseInt(d['totSpace']);
                     usableSpace += parseInt(d['usableSpace']);
                 });
-                diskUse = (usableSpace / totSpace) * 100;
+                diskUse = (totSpace - usableSpace / totSpace) * 100;
             }
 
             // let dbconnCnt =
