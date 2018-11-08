@@ -298,8 +298,8 @@ const convertData = (arr = []) => {
         arr.forEach((data, idx) => {
             let cpuUse = 0;
             let memUse = 0;
-            let totSpace = '';
-            let usableSpace = '';
+            let totSpace = 0;
+            let usableSpace = 0;
             let diskUse = 0;
             let jvmmemUse = 0;
             let threadCnt = parseInt(data['activeThread']);
@@ -321,10 +321,9 @@ const convertData = (arr = []) => {
                     totSpace += parseInt(d['totSpace']);
                     usableSpace += parseInt(d['usableSpace']);
                 });
-                diskUse = (totSpace - usableSpace / totSpace) * 100;
+                diskUse = ((totSpace - usableSpace) / totSpace) * 100;
             }
 
-            // let dbconnCnt =
             if (parseInt(data['totMemJVM']) !== 0 && parseInt(data['totMemJVM']) >= parseInt(data['freeMemJVM'])) {
                 jvmmemUse = (parseInt(data['totMemJVM']) - parseInt(data['freeMemJVM'])) / parseInt(data['totMemJVM']) * 100;
             }
