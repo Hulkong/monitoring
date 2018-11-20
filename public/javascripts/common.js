@@ -34,6 +34,7 @@ const commInit = () => {
  */
 const makeGraph = (ele, customOption) => {
     let key = $(ele).attr('id');
+    let title = $(ele).attr('title');
     let data = {
         labels: [],
         datasets: [
@@ -50,7 +51,7 @@ const makeGraph = (ele, customOption) => {
     let options = {
         title: {
             display: true,
-            text: key
+            text: title
         },
         scales: {
             xAxes: [{
@@ -290,6 +291,7 @@ const convertData = (arr = []) => {
             'mem': [],
             'disk': [],
             'thread': [],
+            'jvmcpu': [],
             'jvmmem': [],
             'date': [],
             'label': []
@@ -301,13 +303,19 @@ const convertData = (arr = []) => {
             let totSpace = 0;
             let usableSpace = 0;
             let diskUse = 0;
+            let jvmCpuUse = 0;
             let jvmmemUse = 0;
             let threadCnt = parseInt(data['activeThread']);
             let date = data['date'];
 
-            // cpu 이용률 계산
-            if (parseFloat(data['getSystemCpuLoad']) !== 0 && parseFloat(data['getSystemCpuLoad']) >= parseFloat(data['getProcessCpuLoad'])) {
-                cpuUse = (parseFloat(data['getSystemCpuLoad']) - parseFloat(data['getProcessCpuLoad'])) / parseFloat(data['getSystemCpuLoad']) * 100;
+            // 전체 시스템 cpu 이용률 계산
+            if (parseFloat(data['getSystemCpuLoad']) !== 0) {
+                cpuUse = parseFloat(data['getSystemCpuLoad']) * 100;
+            }
+
+            // JVM cpu 이용률 계산
+            if (parseFloat(data['getProcessCpuLoad']) !== 0) {
+                jvmCpuUse = parseFloat(data['getProcessCpuLoad']) * 100;
             }
 
             // memory 이용률 계산
@@ -332,6 +340,7 @@ const convertData = (arr = []) => {
             svrInfos['mem'].push(Math.round(memUse * 100) / 100.0);
             svrInfos['disk'].push(Math.round(diskUse * 100) / 100.0);
             svrInfos['thread'].push(threadCnt);
+            svrInfos['jvmcpu'].push(Math.round(jvmCpuUse * 100) / 100.0);
             svrInfos['jvmmem'].push(Math.round(jvmmemUse * 100) / 100.0);
             svrInfos['date'].push(date);
             svrInfos['label'].push('');
