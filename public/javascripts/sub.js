@@ -71,7 +71,8 @@ const drawGraphs = (chartData) => {
                     dataset['backgroundColor'] = 'rgba(255, 0, 0, 0.3)';
                     dataset['borderColor'] = 'rgba(255, 0, 0, 0.3)';
                 } else {
-                    dataset['backgroundColor'] = 'rgba(32, 162, 219, 0.3)';
+                    dataset['backgroundColor'] = 'rgba(19, 224, 227, 0.3)';
+                    // dataset['backgroundColor'] = 'rgba(32, 162, 219, 0.3)';
                     dataset['borderColor'] = 'rgba(32, 162, 219, 0.3)';
                 }
             });
@@ -108,7 +109,8 @@ const updateGraphs = (chartData) => {
                     dataset['backgroundColor'] = 'rgba(255, 0, 0, 0.3)';
                     dataset['borderColor'] = 'rgba(255, 0, 0, 0.3)';
                 } else {
-                    dataset['backgroundColor'] = 'rgba(32, 162, 219, 0.3)';
+                    // dataset['backgroundColor'] = 'rgba(32, 162, 219, 0.3)';
+                    dataset['backgroundColor'] = 'rgba(19, 224, 227, 0.3)';
                     dataset['borderColor'] = 'rgba(32, 162, 219, 0.3)';
                 }
             });
