@@ -8,7 +8,7 @@ const commInit = () => {
     errTimerId = undefined;
     viewTimerId = undefined;
 
-    $('#resource canvas').each((idx, ele) => {
+    $('#svcStat canvas').each((idx, ele) => {
         let key = $(ele).attr('id');
         let option = {};
         if (!(key === 'dbconn' || key === 'thread')) {
