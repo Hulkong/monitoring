@@ -5,11 +5,9 @@
 <head></head>
 <body>
     <header>
-        <nav class="navbar navbar-light bg-light">
+        <nav class="navbar navbar-light">
             <a id="title" class="navbar-brand">전체 서비스 상태표</a>
-            <a id="back" class="navbar-brand"><img src="/images/back.png"/></a>
-            <!-- <button class="btn btn-outline-success my-2 my-sm-0" type="submit" onclick="clickSearch(event);">시작</button> -->
-            <!-- <button class="btn btn-outline-success my-2 my-sm-0" type="submit" onclick="clickSearch(event);">중지</button> -->
+            <a id="back" class="navbar-brand">뒤로가기</a>
             <form id="search" class="form-inline">
                 <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
                 <button class="btn btn-outline-success my-2 my-sm-0" type="submit" onclick="clickSearch(event);">Search</button>
@@ -25,7 +23,7 @@
                 <col width="10%">
                 <col width="10%">
             </colgroup>
-            <thead class="thead-dark">
+            <thead>
                 <tr>
                     <th>서비스명</th>
                     <th>용도</th>
@@ -44,7 +42,7 @@
                     <col width="40%">
                     <col width="60%">
                 </colgroup>
-                <thead class="thead-dark">
+                <thead>
                     <tr>
                         <th>정보</th>
                         <th>값</th>
@@ -54,13 +52,14 @@
                 </tbody>
             </table>
         </div>
-        <div><canvas id="jvmcpu" title="JVM CPU 이용률" width="800" height="240"></canvas></div>
-        <div><canvas id="jvmmem" title="JVM Memory 이용률" width="800" height="240"></canvas></div>
-        <div><canvas id="thread" title="JVM Thread 이용수" width="800" height="240"></canvas></div>
-        <div><canvas id="dbconn" title="JVM DB 커넥션수" width="800" height="240"></canvas></div>
-        <div><canvas id="cpu" title="시스템 CPU 이용률" width="800" height="240"></canvas></div>
-        <div><canvas id="mem" title="시스템 Memory 이용률" width="800" height="240"></canvas></div>
-        <div><canvas id="disk" title="시스템 하드 이용률" width="800" height="240"></canvas></div>
+        <div class="chart"><canvas id="jvmcpu" title="JVM CPU 이용률" width="800" height="240"></canvas></div>
+        <div class="chart"><canvas id="jvmmem" title="JVM Memory 이용률" width="800" height="240"></canvas></div>
+        <div class="chart"><canvas id="thread" title="JVM Thread 이용수" width="800" height="240"></canvas></div>
+        <div class="chart"><canvas id="dbconn" title="JVM DB 커넥션수" width="800" height="240"></canvas></div>
+        <div class="chart"><canvas id="cpu" title="시스템 CPU 이용률" width="800" height="240"></canvas></div>
+        <div class="chart"><canvas id="mem" title="시스템 Memory 이용률" width="800" height="240"></canvas></div>
+        <div class="chart"><canvas id="disk" title="시스템 하드 이용률" width="800" height="240"></canvas></div>
+        <div class="chart"></div>
     </section>
     <link rel="stylesheet" href="/css/bootstrap.min.css">
     <link rel="stylesheet" href="/stylesheets/style.css">

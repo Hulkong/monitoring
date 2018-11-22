@@ -48,7 +48,7 @@ const makeTbAllSvcList = () => {
         let url = svcList[idx]['url'];
         let realUrl = /(http(s)?:\/\/|www.)([a-z0-9\w]+\.*)+[a-z0-9]{2,4}([\/a-z0-9-%#?&=\w])+(\.[a-z0-9]{2,4}(\?[\/a-z0-9-%#?&=\w]+)*)*/gi.exec(url)[0];
 
-        if(svcList[idx]['was'].length === 0) return;
+        if (svcList[idx]['was'].length === 0 || svcList[idx]['nm'] === '뉴스레터') return;
 
         if (event['originalEvent']) {
             if (errTimerId !== undefined) {
@@ -62,7 +62,7 @@ const makeTbAllSvcList = () => {
             }
         }
 
-        $('#allSvcStat').hide();   //
+        $('#allSvcStat').hide();
         $('#search').hide();
         $('#svcStat').css('display', 'grid');
         $('#title').attr('href', realUrl);
@@ -76,7 +76,6 @@ const makeTbAllSvcList = () => {
         $(this).data('status', status);
 
         if (svcList[idx]['dbHost'] === undefined) {
-            $('#dbconn').hide();
             $(this).data('dbconn', false);
         }
 

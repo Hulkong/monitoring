@@ -6,14 +6,20 @@ html, body, span{
     line-height: 1;
 }
 
+body {
+  color: white;
+  background: #363636;
+}
+
 header {
-  border-bottom: 0.1px solid black;
+  border-bottom: 0.1px solid #393939;
+  background: #393939;
 }
 
 header #title {
+  color: white;
   margin: 15px 0 15px 15px;
   font-size: 1.5em;
-  color: black;
 }
 
 header #title:hover {
@@ -25,20 +31,20 @@ header #title:hover {
 header #back {
   display: none;
   font-size: 1.5em;
-  color: black;
   float: right;
   cursor: pointer;
 }
 
 section {
   margin: 0px 0px 0px 0px;
-  width: 98%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #363636;
 }
 
 .table {
-    width: 95%;
     height: 100%;
-    margin-left: 50px;
     text-align: center;
 }
 
@@ -49,31 +55,37 @@ table, th, td {
 
 tbody tr {
     background-color: #EAEAEA;
-    color: #000000;
+    color: #363636;
 }
 
-section#allSvcStat {
-  overflow-y: auto;
-}
+/* section#allSvcStat {
+} */
 
 section#svcStat {
-    display: none;
-    grid-template-columns: repeat(2, 2fr);
-    grid-template-rows: repeat(3, 3fr);
+  height: 93%;
+  display: none;
+  grid-template-columns: repeat(2, 2fr);
+  grid-template-rows: repeat(4, 4fr);
 }
 
-section #info {
+section#svcStat #info {
   display: none;
   margin-top: 100px;
   margin-left: 50px;
   position: relative;
 }
 
-section #info table {
+section#svcStat #info table {
   margin:0;
   padding:0;
 }
 
+section#svcStat .chart {
+  background: #3E3D3B;
+  border-style: solid;
+  border-color: #363636;
+  color: #ffffff;
+}
 /* for MS계열 브라우저 */
 @keyframes blink {
  0% {background-color: red;}
@@ -84,6 +96,26 @@ section #info table {
 @-webkit-keyframes blink {
  0% {background-color: red;}
  50% {background-color: #EAEAEA;}
+}
+
+/* width */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #888;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 /* blink CSS 브라우저 별로 각각 애니메이션을 지정해 주어야 동작한다. */

@@ -13,12 +13,24 @@ const commInit = () => {
         let option = {};
         if (!(key === 'dbconn' || key === 'thread')) {
             option.scales = {
+                xAxes: [{
+                    stacked: true,
+                    gridLines: {
+                        color: "white",
+                        borderDash: [2, 5],
+                    },
+                }],
                 yAxes: [{
+                    gridLines: {
+                        color: "white",
+                        borderDash: [2, 5],
+                    },
                     ticks: {
                         beginAtZero: true,
                         steps: 10,
                         stepValue: 5,
-                        max: 100
+                        max: 100,
+                        fontColor: "white"
                     }
                 }]
             };
@@ -51,18 +63,28 @@ const makeGraph = (ele, customOption) => {
     let options = {
         title: {
             display: true,
+            fontColor: "white",
             text: title
         },
         scales: {
             xAxes: [{
                 stacked: true,
+                gridLines: {
+                    color: "white",
+                    borderDash: [2, 5],
+                },
             }],
             yAxes: [{
                 stacked: true,
                 display: true,
+                gridLines: {
+                    color: "white",
+                    borderDash: [2, 5],
+                },
                 ticks: {
                     suggestedMin: 0,
-                    suggestedMax: 100
+                    suggestedMax: 100,
+                    fontColor: "white"
                 }
             }]
         },
