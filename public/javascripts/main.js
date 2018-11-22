@@ -62,7 +62,7 @@ const makeTbAllSvcList = () => {
             }
         }
 
-        $('#allSvcStat').hide();   //
+        $('#allSvcStat').hide();
         $('#search').hide();
         $('#svcStat').css('display', 'grid');
         $('#title').attr('href', realUrl);
