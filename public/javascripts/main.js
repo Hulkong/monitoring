@@ -76,7 +76,7 @@ const makeTbAllSvcList = () => {
         $(this).data('status', status);
 
         if (svcList[idx]['dbHost'] === undefined) {
-            $('#dbconn').hide();
+            // $('#dbconn').hide();
             $(this).data('dbconn', false);
         }
 
