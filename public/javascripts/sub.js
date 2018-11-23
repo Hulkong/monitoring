@@ -146,3 +146,13 @@ $('#back').click(function() {
 
     sendToClient(ws, data);   // nodeJS 서버로 데이터 송신
 });
+
+// 타이틀 마우스 오버 이벤트
+$('#title').mouseenter(function () {
+    $('#info').show();
+});
+
+// 타이틀 마우스 리브 이벤트
+$('#title').mouseleave(function () {
+    $('#info').hide();
+});
