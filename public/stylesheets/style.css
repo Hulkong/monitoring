@@ -12,27 +12,35 @@ body {
 }
 
 header {
+  height: 80px;
   background: #393939;
 }
 
 header #title {
   color: white;
-  margin: 15px 0 15px 15px;
-  font-size: 1.5em;
+  margin: 13px 0 15px 0;
+  font-size: 30px;
 }
 
 header #title:hover {
-  margin: 15px 0 15px 15px;
-  font-size: 1.5em;
+  margin: 13px 0 15px 0;
+  font-size: 30px;
   color: cadetblue;
+}
+
+header #clock {
+  position: fixed;
+  margin: 0 0 0 620px;
+  font-size: 45px;
 }
 
 header #back {
   display: none;
-  font-size: 1.5em;
+  font-size: 30px;
   float: right;
   cursor: pointer;
 }
+
 
 section {
   margin: 0px 0px 0px 0px;
