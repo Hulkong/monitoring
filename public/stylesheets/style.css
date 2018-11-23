@@ -14,33 +14,43 @@ body {
 header {
   height: 80px;
   background: #393939;
+  display: grid;
+  grid-template-columns: repeat(3, 3fr);
+  grid-template-rows: repeat(1, 1fr);
+}
+
+header div {
+  text-align: center;
+  margin-top: 18px;
 }
 
 header #title {
   color: white;
-  margin: 13px 0 15px 0;
   font-size: 30px;
 }
 
 header #title:hover {
-  margin: 13px 0 15px 0;
   font-size: 30px;
   color: cadetblue;
 }
 
 header #clock {
-  position: fixed;
-  margin: 0 0 0 620px;
   font-size: 45px;
 }
 
 header #back {
   display: none;
   font-size: 30px;
-  float: right;
   cursor: pointer;
+  float: right;
+  margin-right: 50px;
 }
 
+header #search {
+  font-size: 30px;
+  float: right;
+  margin-right: 50px;
+}
 
 section {
   margin: 0px 0px 0px 0px;
@@ -67,9 +77,6 @@ tbody tr {
   background-color: #EAEAEA;
   color: #363636;
 }
-
-/* section#allSvcStat {
-} */
 
 section#svcStat {
   height: 93%;
