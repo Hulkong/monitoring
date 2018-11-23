@@ -12,28 +12,35 @@ body {
 }
 
 header {
-  border-bottom: 0.1px solid #393939;
+  height: 80px;
   background: #393939;
 }
 
 header #title {
   color: white;
-  margin: 15px 0 15px 15px;
-  font-size: 1.5em;
+  margin: 13px 0 15px 0;
+  font-size: 30px;
 }
 
 header #title:hover {
-  margin: 15px 0 15px 15px;
-  font-size: 1.5em;
+  margin: 13px 0 15px 0;
+  font-size: 30px;
   color: cadetblue;
+}
+
+header #clock {
+  position: fixed;
+  margin: 0 0 0 620px;
+  font-size: 45px;
 }
 
 header #back {
   display: none;
-  font-size: 1.5em;
+  font-size: 30px;
   float: right;
   cursor: pointer;
 }
+
 
 section {
   margin: 0px 0px 0px 0px;
@@ -44,18 +51,21 @@ section {
 }
 
 .table {
-    height: 100%;
-    text-align: center;
+  height: 100%;
+  text-align: center;
 }
 
 table, th, td {
-    border: 1px solid #ffffff;
-    border-collapse: collapse;
+  border: solid #363636;
+}
+
+thead tr {
+  background-color: #3E3D3B;
 }
 
 tbody tr {
-    background-color: #EAEAEA;
-    color: #363636;
+  background-color: #EAEAEA;
+  color: #363636;
 }
 
 /* section#allSvcStat {
@@ -70,9 +80,8 @@ section#svcStat {
 
 section#svcStat #info {
   display: none;
-  margin-top: 100px;
-  margin-left: 50px;
-  position: relative;
+  position: absolute;
+  margin-left: 150px;
 }
 
 section#svcStat #info table {
@@ -82,8 +91,7 @@ section#svcStat #info table {
 
 section#svcStat .chart {
   background: #3E3D3B;
-  border-style: solid;
-  border-color: #363636;
+  border: solid #363636;
   color: #ffffff;
 }
 /* for MS계열 브라우저 */
