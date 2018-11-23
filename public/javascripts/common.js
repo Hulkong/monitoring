@@ -38,8 +38,18 @@ const commInit = () => {
         makeGraph(ele, option);
     });
     connectNodeJs();   // nodejs 서버 웹소켓 생성 및 연결
+    preventHistory();   // 뒤로가기, 앞으로가기 비활성화
 };
 
+/**
+ * @description 뒤로가기, 앞으로가기 비활성화 하는 함수
+ */
+const preventHistory = () => {
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        history.go(1);
+    };
+};
 /**
  * @description 그래프 프레임 만드는 함수
  * @param {*} ele 차트그리기 위한 html 엘리먼트
