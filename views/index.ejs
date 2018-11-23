@@ -5,15 +5,17 @@
 <head></head>
 <body>
     <header>
-        <nav class="navbar navbar-light">
-            <a id="title" class="navbar-brand">전체 서비스 상태표</a>
-            <a id="clock"></a>
+        <!-- <nav class="navbar navbar-light wrapper"> -->
+        <div><a id="title" class="navbar-brand">전체 서비스 상태표</a></div>
+        <div><a id="clock"></a></div>
+        <div>
             <a id="back" class="navbar-brand">뒤로가기</a>
             <form id="search" class="form-inline">
                 <input class="form-control mr-sm-2" type="search" placeholder="키워드를 입력해주세요." aria-label="Search">
                 <button class="btn btn-outline-success my-2 my-sm-0" type="submit" onclick="clickSearch(event);">검색</button>
             </form>
-        </nav>
+        </div>
+        <!-- </nav> -->
     </header>
     <section id="allSvcStat">
         <table class="table">
