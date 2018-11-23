@@ -12,7 +12,6 @@ body {
 }
 
 header {
-  border-bottom: 0.1px solid #393939;
   background: #393939;
 }
 
@@ -44,18 +43,21 @@ section {
 }
 
 .table {
-    height: 100%;
-    text-align: center;
+  height: 100%;
+  text-align: center;
 }
 
 table, th, td {
-    border: 1px solid #ffffff;
-    border-collapse: collapse;
+  border: solid #363636;
+}
+
+thead tr {
+  background-color: #3E3D3B;
 }
 
 tbody tr {
-    background-color: #EAEAEA;
-    color: #363636;
+  background-color: #EAEAEA;
+  color: #363636;
 }
 
 /* section#allSvcStat {
@@ -70,9 +72,8 @@ section#svcStat {
 
 section#svcStat #info {
   display: none;
-  margin-top: 100px;
-  margin-left: 50px;
-  position: relative;
+  position: absolute;
+  margin-left: 150px;
 }
 
 section#svcStat #info table {
@@ -82,8 +83,7 @@ section#svcStat #info table {
 
 section#svcStat .chart {
   background: #3E3D3B;
-  border-style: solid;
-  border-color: #363636;
+  border: solid #363636;
   color: #ffffff;
 }
 /* for MS계열 브라우저 */
