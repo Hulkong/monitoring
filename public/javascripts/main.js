@@ -86,13 +86,37 @@ const makeTbAllSvcList = () => {
         subPageInit(this);   // sub page 초기화
     });
 
-    // 테이블 마우스 엔터 이벤트
-    $('#allSvcStat tbody tr').mouseenter(function () {
+    // 테이블 바디 마우스 엔터 이벤트
+    $('#allSvcStat tbody').mouseenter(function (event) {
+
+        stopTimer = true;
+
+        // tbody에 마우스커서 옮겼을 경우 모든 Timer 중지
+        if (event['originalEvent']) {
+            if (errTimerId !== undefined) {
+                clearInterval(errTimerId);
+                errTimerId = undefined;
+            }
+
+            if (viewTimerId !== undefined) {
+                clearInterval(viewTimerId);
+                viewTimerId = undefined;
+            }
+        }
+    });
+
+    // 테이블 바디 마우스 리브 이벤트
+    $('#allSvcStat tbody').mouseleave(function (event) {
+        stopTimer = false;
+    });
+
+    // 테이블 리스트 마우스 엔터 이벤트
+    $('#allSvcStat tbody tr').mouseenter(function (event) {
         $(this).css('background-color', '#7F7F7F');
     });
 
     // 테이블 리스트 마우스 리브 이벤트
-    $('#allSvcStat tbody tr').mouseleave(function () {
+    $('#allSvcStat tbody tr').mouseleave(function (event) {
         $(this).css('background-color', '#EAEAEA');
     });
 };

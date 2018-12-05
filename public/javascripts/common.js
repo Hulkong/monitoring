@@ -5,8 +5,9 @@ const commInit = () => {
     charts = {};
     pageNm = 'main'
     errArr = [];
-    errTimerId = undefined;
-    viewTimerId = undefined;
+    errTimerId = undefined;   // 에러 이벤트 타이머 id
+    viewTimerId = undefined; // 화면전환 타이머 id
+    stopTimer = false;   // 타이머 멈춤 여부
 
     $('#svcStat canvas').each((idx, ele) => {
         let key = $(ele).attr('id');
@@ -337,8 +338,10 @@ const changeStat = (data) => {
         }
     });
 
-    if(errOccur) controlInterval('error');
-    else controlInterval('normal');
+    if(!stopTimer) {
+        if(errOccur) controlInterval('error');
+        else controlInterval('normal');
+    }
 };
 
 /**
