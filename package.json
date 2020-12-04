@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "window_start": "node ./bin/www",
-    "linux_start": "node ./bin/www &",
-    "dev_start": "nodemon ./bin/www"
+    "window": "node ./bin/www",
+    "linux": "node ./bin/www &",
+    "dev": "nodemon ./bin/www"
   },
   "dependencies": {
-    "bootstrap": "^4.1.3",
+    "bootstrap": "^4.5.3",
     "chart.js": "^2.7.2",
     "cookie-parser": "~1.4.3",
     "debug": "~2.6.9",
@@ -18,12 +18,12 @@
     "fs": "0.0.1-security",
     "http-errors": "~1.6.2",
     "jade": "~1.11.0",
-    "jquery": "^3.3.1",
+    "jquery": "^3.5.1",
     "morgan": "^1.9.1",
     "mysql": "^2.16.0",
-    "nodemon": "^1.18.4",
-    "npm": "^6.9.0",
-    "oracledb": "^2.3.0",
+    "nodemon": "^2.0.6",
+    "npm": "^6.14.9",
+    "oracledb": "^5.0.0",
     "pg": "^7.4.3",
     "pg-pool": "^2.0.3",
     "read-last-lines": "^1.6.0",

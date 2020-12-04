@@ -65,6 +65,10 @@ section {
   text-align: center;
 }
 
+table, th {
+  color: white;
+}
+
 table, th, td {
   border: solid #363636;
 }

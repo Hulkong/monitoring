@@ -89,11 +89,14 @@ comm.openConnPool().then((pools) => {
   server.processOfDB(pools, cleData);
   server.processOfSRsc(cleData);
 
-  // 300000
+  const minute = 60;
+  const seconds = 1000;
+  
+  // 5분
   setInterval(() => {
     server.processOfDB(pools, cleData);
     server.processOfSRsc(cleData);
-  }, 300000);
+  }, 5 * seconds * minute);
 });
 
 module.exports = app;

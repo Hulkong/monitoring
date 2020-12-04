@@ -60,9 +60,6 @@ typings/
 # next.js build output
 .next
 
-# import information
-info/
-
 # service server hardware resource(json)
 resource/
 
