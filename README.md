@@ -59,8 +59,8 @@
 
 <br/>
 
-![page1](./contents/real_page1.png)
-![page2](./contents/real_page2.png)
+![page1](./contents/real_page1.PNG)
+![page2](./contents/real_page2.PNG)
 
 <br/><br/>
 
